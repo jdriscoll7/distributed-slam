@@ -51,7 +51,7 @@ def plot_g2o_vertices(vertices):
 
     plt.figure()
     plt.plot(vertices[:, 0], vertices[:, 1], '-')
-    plt.axis('on')
+    plt.axis('off')
 
 
 if __name__ == "__main__":

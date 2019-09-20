@@ -3,47 +3,55 @@ import sys
 from os import path
 sys.path.extend([path.dirname(path.abspath(__file__)) + "/../"])
 
+# Import g2o bindings, some custom plotting/parsing functions, and matplotlib.
 import g2o
-import numpy as np
-import os
-
-from visualization import plot_g2o as g2o_plot
+from visualization.plot_g2o import plot_g2o_vertices, parse_g2o
 from matplotlib import pyplot as plt
 
 
-import argparse
-
-parser = argparse.ArgumentParser()
-parser.add_argument('-n', '--max_iterations', type=int, default=10000, help='perform n iterations')
-parser.add_argument('-i', '--input', type=str, default='../datasets/input_M3500c_g2o.g2o', help='input file')
-parser.add_argument('-o', '--output', type=str, default='result', help='save resulting graph as file')
-args = parser.parse_args()
+# Some simple demo parameters.
+INPUT_FILE = "../datasets/input_M3500c_g2o.g2o"
+OUTPUT_FILE = "result.g2o"
+MAX_ITERATIONS = 5000
+LOGGING = True
 
 
-def main():
-    print(__file__)
-    # solver = g2o.BlockSolverX(g2o.LinearSolverCholmodX())
+def run_optimizer():
+
+    # Setup solver.
     solver = g2o.BlockSolverSE2(g2o.LinearSolverEigenSE2())
     solver = g2o.OptimizationAlgorithmLevenberg(solver)
 
+    # Setup optimizer with optional console logging.
     optimizer = g2o.SparseOptimizer()
-    optimizer.set_verbose(True)
     optimizer.set_algorithm(solver)
+    optimizer.set_verbose(LOGGING)
 
-    optimizer.load(args.input)
-    print('num vertices:', len(optimizer.vertices()))
-    print('num edges:', len(optimizer.edges()), end='\n\n')
-
+    # Load data file and initialize optimizer.
+    optimizer.load(INPUT_FILE)
     optimizer.initialize_optimization()
-    optimizer.optimize(args.max_iterations)
 
-    if len(args.output) > 0:
-        optimizer.save(args.output)
+    # Perform optimization and save output.
+    optimizer.optimize(MAX_ITERATIONS)
+    optimizer.save(OUTPUT_FILE)
+
+
+def make_plots():
+
+    # Plot result of PGO.
+    plot_g2o_vertices(parse_g2o("result")[0])
+    plt.title("PGO Output (g2o)")
+
+    # Plot original data file.
+    plot_g2o_vertices(parse_g2o(INPUT_FILE)[0])
+    plt.title("Raw Input File")
+
+    # Show both plots.
+    plt.show()
 
 
 if __name__ == '__main__':
-    main()
-    g2o_plot.plot_g2o_vertices(g2o_plot.parse_g2o("result")[0])
-    g2o_plot.plot_g2o_vertices(g2o_plot.parse_g2o("../datasets/input_M3500c_g2o.g2o")[0])
-    plt.show()
 
+    # Perform PGO on input file and plot raw data and optimizer solution.
+    run_optimizer()
+    make_plots()
