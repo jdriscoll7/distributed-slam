@@ -1,7 +1,7 @@
 # Setup virtual environment.
+sudo apt install python3-venv
 python3 -m venv ./venv/
-source ./venv/bin/activate
-pip3 install -r requirements.txt
+./venv/bin/pip3 install -r requirements.txt
 
 # Download and install g2opy (python bindings for g2o).
 git clone https://github.com/uoip/g2opy.git
