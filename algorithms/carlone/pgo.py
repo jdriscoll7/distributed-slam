@@ -15,15 +15,23 @@ def w_with_multipliers(w, multipliers, n_vertices):
     :return:            modified w matrix used in SPD constraint
     """
 
-    # Get indices for accessing diagonal of w.
-    diag_indices = np.diag_indices(w.shape[0])
+    # Form diagonal matrix from multipliers for lower-right block.
+    d_22 = cp.diag(multipliers)
 
-    # Get indices of diagonals to change.
-    n = w.shape[0]
-    indices = ([i for i in range(n_vertices - 1, n)], [i for i in range(n_vertices - 1, n)])
+    # Correctly shape the zero block for lower-left block.
+    shape = (d_22.shape[0], w.shape[1] - d_22.shape[1])
+    d_21 = cp.Constant(np.zeros(shape))
 
-    # Subtract these from w.
-    w[indices] = w[indices] - multipliers.value
+    # Upper-half is all zeros - combine upper-left and upper-right blocks.
+    shape = (w.shape[0] - d_22.shape[0], w.shape[1])
+    d_1 = cp.Constant(np.zeros(shape))
+
+    # Combine these blocks into one large matrix by horizontally stacking d_21 and d_22, then vertically stacking
+    # the result with the top block row d_1.
+    d_2 = cp.hstack([d_21, d_22])
+    d = cp.vstack([d_1, d_2])
+
+    return cp.Constant(w) - d
 
 
 def solve_dual_problem(w, n_vertices):
@@ -41,10 +49,8 @@ def solve_dual_problem(w, n_vertices):
     # Add positive semi-definiteness constraint.
     constraints = [w_with_multipliers(w, multipliers, n_vertices) >> 0]
 
-    problem = cp.Problem(cp.Maximize(cp.sum(multipliers)),
-                         constraints)
-
-    # Solve the SDP program.
+    # Form and solve problem.
+    problem = cp.Problem(cp.Maximize(cp.sum(multipliers)), constraints)
     problem.solve()
 
     return multipliers.value
