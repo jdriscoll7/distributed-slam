@@ -13,7 +13,7 @@ from matplotlib import pyplot as plt
 # Some simple demo parameters.
 INPUT_FILE = "../datasets/input_M3500c_g2o.g2o"
 OUTPUT_FILE = "result.g2o"
-MAX_ITERATIONS = 1000
+MAX_ITERATIONS = 100
 LOGGING = True
 
 

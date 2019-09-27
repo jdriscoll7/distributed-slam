@@ -10,10 +10,11 @@ class Vertex:
 
 class Edge:
 
-    def __init__(self, out_vertex, in_vertex, relative_pose, information_matrix):
+    def __init__(self, out_vertex, in_vertex, relative_pose, rotation, information_matrix):
         self.out_vertex = out_vertex
         self.in_vertex = in_vertex
         self.relative_pose = relative_pose
+        self.rotation = rotation
         self.information_matrix = information_matrix
 
 
@@ -48,12 +49,13 @@ def parse_g2o(path):
             # Extract ID and information matrix.
             out_vertex = int(line_tokens[1])
             in_vertex = int(line_tokens[2])
-            relative_pose = np.array([line_tokens[3:5]]).T
-            matrix = np.array([[float(line_tokens[6]), float(line_tokens[7]), float(line_tokens[8])],
+            relative_pose = np.array([float(x) for x in line_tokens[3:5]]).T
+            rotation = float(line_tokens[5])
+            matrix = np.matrix([[float(line_tokens[6]), float(line_tokens[7]), float(line_tokens[8])],
                                [float(line_tokens[7]), float(line_tokens[9]), float(line_tokens[10])],
                                [float(line_tokens[8]), float(line_tokens[10]), float(line_tokens[11])]])
 
             # Update return list with information just extracted.
-            edges.insert(out_vertex, Edge(out_vertex, in_vertex, relative_pose, matrix))
+            edges.insert(out_vertex, Edge(out_vertex, in_vertex, relative_pose, rotation, matrix))
 
     return vertices, edges
