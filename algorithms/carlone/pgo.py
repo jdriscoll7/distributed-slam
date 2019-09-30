@@ -3,6 +3,7 @@ import cvxpy as cp
 from algorithms.carlone.matrix_creation import *
 from utility.parsing.g2o import parse_g2o
 from scipy.linalg import null_space
+from scipy.io import loadmat
 import time
 
 
@@ -17,10 +18,22 @@ def w_with_multipliers(w, multipliers):
     :return:            modified w matrix used in SPD constraint
     """
 
-    # Create diagonal matrix to subtract from w.
-    d = cp.diag(cp.hstack([[0.0 for i in range(1, multipliers.shape[0])], multipliers]))
+    # Form diagonal matrix from multipliers for lower-right block.
+    d_22 = cp.diag(multipliers)
 
-    # Return the difference of the two.
+    # Correctly shape the zero block for lower-left block.
+    shape = (d_22.shape[0], w.shape[1] - d_22.shape[1])
+    d_21 = cp.Constant(np.zeros(shape))
+
+    # Upper-half is all zeros - combine upper-left and upper-right blocks.
+    shape = (w.shape[0] - d_22.shape[0], w.shape[1])
+    d_1 = cp.Constant(np.zeros(shape))
+
+    # Combine these blocks into one large matrix by horizontally stacking d_21 and d_22, then vertically stacking
+    # the result with the top block row d_1.
+    d_2 = cp.hstack([d_21, d_22])
+    d = cp.vstack([d_1, d_2])
+
     return cp.Constant(w) - d
 
 
@@ -40,7 +53,7 @@ def solve_dual_program(w):
 
     # Form and solve problem.
     problem = cp.Problem(cp.Maximize(cp.sum(multipliers)), constraints)
-    problem.solve(verbose=True)
+    problem.solve(verbose=True, parallel=True, max_iters=50)
 
     return multipliers.value
 
@@ -57,7 +70,7 @@ def solve_suboptimal_program(basis):
     """
 
     # Vector z is the program variable.
-    z = cp.Variable((basis.shape[0],))
+    z = cp.Variable((basis.shape[1],))
 
     # Setup constraints (see algorithm 1 in Carlone paper for details).
     constraints = [np.asarray(basis[i, :])@z <= 1 for i in range((z.shape[0] + 1) // 2, z.shape[0])]
@@ -90,7 +103,8 @@ def pgo(w):
     # Solve SDP to find dual solution - time how long it takes as well.
     print("Solving dual problem.")
     start = time.time()
-    dual_solution = solve_dual_program(w)
+    #dual_solution = solve_dual_program(w)
+    dual_solution = loadmat("dual_solution.mat")["dual_solution"]
     print("Dual problem completed. Time elapsed: %f seconds." % (time.time() - start))
 
     # Evaluate W(lambda).
