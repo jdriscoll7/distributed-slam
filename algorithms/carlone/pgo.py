@@ -17,22 +17,10 @@ def w_with_multipliers(w, multipliers):
     :return:            modified w matrix used in SPD constraint
     """
 
-    # Form diagonal matrix from multipliers for lower-right block.
-    d_22 = cp.diag(multipliers)
+    # Create diagonal matrix to subtract from w.
+    d = cp.diag(cp.hstack([[0.0 for i in range(1, multipliers.shape[0])], multipliers]))
 
-    # Correctly shape the zero block for lower-left block.
-    shape = (d_22.shape[0], w.shape[1] - d_22.shape[1])
-    d_21 = cp.Constant(np.zeros(shape))
-
-    # Upper-half is all zeros - combine upper-left and upper-right blocks.
-    shape = (w.shape[0] - d_22.shape[0], w.shape[1])
-    d_1 = cp.Constant(np.zeros(shape))
-
-    # Combine these blocks into one large matrix by horizontally stacking d_21 and d_22, then vertically stacking
-    # the result with the top block row d_1.
-    d_2 = cp.hstack([d_21, d_22])
-    d = cp.vstack([d_1, d_2])
-
+    # Return the difference of the two.
     return cp.Constant(w) - d
 
 
@@ -154,7 +142,7 @@ def pgo(w):
 if __name__ == "__main__":
 
     # Get w matrix.
-    vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_INTEL_g2o.g2o")
+    vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_MITb_g2o.g2o")
     w = w_from_vertices_and_edges(vertices, edges)
 
     # Run algorithm 1 from Carlone paper.
