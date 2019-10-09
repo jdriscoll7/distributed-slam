@@ -5,6 +5,7 @@ from utility.parsing.g2o import parse_g2o
 from scipy.linalg import null_space
 from scipy.io import loadmat
 import time
+import sdpt3glue
 
 
 def w_with_multipliers(w, multipliers):
@@ -53,9 +54,12 @@ def solve_dual_program(w):
 
     # Form and solve problem.
     problem = cp.Problem(cp.Maximize(cp.sum(multipliers)), constraints)
-    problem.solve(verbose=True, parallel=True, max_iters=50)
+    #problem.solve(verbose=True, max_iters=50)
 
-    return multipliers.value
+    result = sdpt3glue.sdpt3_solve_problem(problem, sdpt3glue.NEOS, "in.mat", "out.mat")
+
+    #return multipliers.value
+    return result
 
 
 def solve_suboptimal_program(basis):
@@ -103,8 +107,8 @@ def pgo(w):
     # Solve SDP to find dual solution - time how long it takes as well.
     print("Solving dual problem.")
     start = time.time()
-    #dual_solution = solve_dual_program(w)
-    dual_solution = loadmat("dual_solution.mat")["dual_solution"]
+    dual_solution = solve_dual_program(w)
+    #dual_solution = loadmat("dual_solution.mat")["dual_solution"]
     print("Dual problem completed. Time elapsed: %f seconds." % (time.time() - start))
 
     # Evaluate W(lambda).
