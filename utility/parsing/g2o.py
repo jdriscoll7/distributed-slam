@@ -21,7 +21,7 @@ class Edge:
 def parse_g2o(path):
     """
     :param path: Path to g2o file.
-    :return: List of vertices and list of edges.
+    :return:     List of vertices and list of edges.
     """
 
     # Initialize return lists.

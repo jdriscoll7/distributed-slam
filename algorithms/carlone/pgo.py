@@ -3,9 +3,10 @@ import cvxpy as cp
 from algorithms.carlone.matrix_creation import *
 from utility.parsing.g2o import parse_g2o
 from scipy.linalg import null_space
-from scipy.io import loadmat
+from scipy.io import loadmat, savemat
 import time
-import sdpt3glue
+from utility.visualization.plot import plot_complex_list
+import utility.sdpt3glue as sdpt3glue
 
 
 def w_with_multipliers(w, multipliers):
@@ -54,12 +55,19 @@ def solve_dual_program(w):
 
     # Form and solve problem.
     problem = cp.Problem(cp.Maximize(cp.sum(multipliers)), constraints)
-    #problem.solve(verbose=True, max_iters=50)
 
-    result = sdpt3glue.sdpt3_solve_problem(problem, sdpt3glue.NEOS, "in.mat", "out.mat")
+    sdpt3glue.sdpt3_solve_problem(problem, sdpt3glue.NEOS, "matfile.mat", "log.log")
 
-    #return multipliers.value
-    return result
+
+
+
+
+
+    problem.solve(verbose=True)
+
+    savemat("dual_solution.mat", {"dual_solution": multipliers.value})
+
+    return multipliers.value
 
 
 def solve_suboptimal_program(basis):
@@ -74,17 +82,16 @@ def solve_suboptimal_program(basis):
     """
 
     # Vector z is the program variable.
-    z = cp.Variable((basis.shape[1],))
+    z = cp.Variable((basis.shape[1], 1))
 
     # Setup constraints (see algorithm 1 in Carlone paper for details).
-    constraints = [np.asarray(basis[i, :])@z <= 1 for i in range((z.shape[0] + 1) // 2, z.shape[0])]
+    constraints = [cp.abs((basis@z)[i])**2 <= 1 for i in range((basis.shape[0] + 1) // 2, basis.shape[0])]
 
-    # Setup objective - take multiplication expression out to avoid evaluating twice.
-    mult = basis@z
-    problem = cp.Problem(cp.Maximize(cp.sum(cp.real(mult) + cp.real(mult))), constraints)
+    # Setup objective.
+    problem = cp.Problem(cp.Maximize(cp.sum(cp.real(basis@z) + cp.imag(basis@z))), constraints)
 
     # Solve problem.
-    problem.solve()
+    problem.solve(verbose=True, solver=cp.ECOS)
 
     # Return solution.
     return z.value
@@ -118,7 +125,8 @@ def pgo(w):
     eigenvals, eigenvecs = np.linalg.eig(w_lambda)
 
     # Count number of zero eigenvalues.
-    zero_multiplicity = len(eigenvals) - np.count_nonzero(eigenvals)
+    tolerance = 1e-6
+    zero_multiplicity = len(eigenvals[np.abs(eigenvals) < tolerance])
 
     # If there is a single zero eigenvalue, then eigenvector corresponding to it corresponds
     # to solution.
@@ -128,10 +136,14 @@ def pgo(w):
         print("Single zero eigenvalue property holds.")
 
         # Find eigenvector corresponding to the single zero eigenvalue.
-        v = eigenvecs[np.where(eigenvals == 0.0)]
+        v = np.asarray(eigenvecs[:, np.where(np.abs(eigenvals) < 1e-8)[0][0] - 1])
+        v = np.reshape(v, (-1, 1))
 
-        # Normalize eigenvector, set solution, and update optimality certificate.
-        solution = v / v[-1]
+        # Normalize eigenvector.
+        v[v.shape[0] // 2:, :] = v[v.shape[0] // 2:, :] / np.abs(v[v.shape[0] // 2:, :])
+
+        # Set solution, and update optimality certificate.
+        solution = v
         is_optimal = "true"
 
     else:
@@ -140,7 +152,7 @@ def pgo(w):
         print("Single zero eigenvalue property does not hold.")
 
         # Compute basis for null space of W(lambda).
-        basis = null_space(w_lambda)
+        basis = null_space(w_lambda, 1e-4)
 
         # Solve solution to suboptimal program.
         z = solve_suboptimal_program(basis)
@@ -160,8 +172,11 @@ def pgo(w):
 if __name__ == "__main__":
 
     # Get w matrix.
-    vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_MITb_g2o.g2o")
+    # vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_MITb_g2o.g2o")
+    vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_INTEL_cut.g2o")
     w = w_from_vertices_and_edges(vertices, edges)
 
     # Run algorithm 1 from Carlone paper.
-    print(pgo(w))
+    solution = pgo(w)
+    plot_complex_list(solution[0][0:199])
+

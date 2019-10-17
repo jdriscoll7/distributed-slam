@@ -1,5 +1,19 @@
 from utility.parsing.g2o import parse_g2o
 from matplotlib import pyplot as plt
+import numpy as np
+
+
+def plot_complex_list(data):
+
+    # Extract coordinates for each vertex.
+    x = [np.real(d) for d in data]
+    y = [np.imag(d) for d in data]
+
+    # Plot these pairs of coordinates.
+    plt.figure()
+    plt.plot(x, y, '-')
+    plt.axis('off')
+    plt.show()
 
 
 def plot_vertices(vertices):
