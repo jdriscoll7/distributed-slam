@@ -126,7 +126,7 @@ def pgo(w):
         print("Single zero eigenvalue property holds.")
 
         # Find eigenvector corresponding to the single zero eigenvalue.
-        v = np.asarray(eigenvecs[:, np.where(np.abs(eigenvals) < 1e-8)[0][0] - 1])
+        v = np.asarray(eigenvecs[:, np.where(np.isclose(eigenvals, 0))[0][0] - 1])
         v = np.reshape(v, (-1, 1))
 
         # Normalize eigenvector.
@@ -142,7 +142,7 @@ def pgo(w):
         print("Single zero eigenvalue property does not hold.")
 
         # Compute basis for null space of W(lambda).
-        basis = null_space(w_lambda, 1e-4)
+        basis = null_space(w_lambda)
 
         # Solve solution to suboptimal program.
         z = solve_suboptimal_program(basis)
