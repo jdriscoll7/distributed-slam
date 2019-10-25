@@ -6,7 +6,6 @@ from scipy.linalg import null_space
 from scipy.io import loadmat, savemat
 import time
 from utility.visualization.plot import plot_complex_list
-import utility.sdpt3glue as sdpt3glue
 
 
 def w_with_multipliers(w, multipliers):
@@ -47,6 +46,8 @@ def solve_dual_program(w):
     :return:            lambda (solution to dual problem)
     """
 
+    return loadmat("multiplier_solution.mat")["y"]
+
     # Declare Lagrange multipliers as variable to solve dual.
     multipliers = cp.Variable(((w.shape[0] + 1) // 2,))
 
@@ -56,16 +57,7 @@ def solve_dual_program(w):
     # Form and solve problem.
     problem = cp.Problem(cp.Maximize(cp.sum(multipliers)), constraints)
 
-    sdpt3glue.sdpt3_solve_problem(problem, sdpt3glue.NEOS, "matfile.mat", "log.log")
-
-
-
-
-
-
     problem.solve(verbose=True)
-
-    savemat("dual_solution.mat", {"dual_solution": multipliers.value})
 
     return multipliers.value
 
@@ -115,7 +107,6 @@ def pgo(w):
     print("Solving dual problem.")
     start = time.time()
     dual_solution = solve_dual_program(w)
-    #dual_solution = loadmat("dual_solution.mat")["dual_solution"]
     print("Dual problem completed. Time elapsed: %f seconds." % (time.time() - start))
 
     # Evaluate W(lambda).
@@ -125,8 +116,7 @@ def pgo(w):
     eigenvals, eigenvecs = np.linalg.eig(w_lambda)
 
     # Count number of zero eigenvalues.
-    tolerance = 1e-6
-    zero_multiplicity = len(eigenvals[np.abs(eigenvals) < tolerance])
+    zero_multiplicity = np.sum(np.isclose(eigenvals, 0))
 
     # If there is a single zero eigenvalue, then eigenvector corresponding to it corresponds
     # to solution.
@@ -173,10 +163,10 @@ if __name__ == "__main__":
 
     # Get w matrix.
     # vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_MITb_g2o.g2o")
-    vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_INTEL_cut.g2o")
+    vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_MITb_g2o.g2o")
     w = w_from_vertices_and_edges(vertices, edges)
 
     # Run algorithm 1 from Carlone paper.
     solution = pgo(w)
-    plot_complex_list(solution[0][0:199])
+    plot_complex_list(solution[0])
 
