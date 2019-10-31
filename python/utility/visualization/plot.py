@@ -1,4 +1,4 @@
-from utility.parsing.g2o import parse_g2o
+from python.utility.parsing.g2o import parse_g2o
 from matplotlib import pyplot as plt
 import numpy as np
 

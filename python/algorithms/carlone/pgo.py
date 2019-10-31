@@ -1,11 +1,11 @@
 import numpy as np
 import cvxpy as cp
-from algorithms.carlone.matrix_creation import *
-from utility.parsing.g2o import parse_g2o
+from python.algorithms.carlone.matrix_creation import *
+from python.utility.parsing.g2o import parse_g2o
 from scipy.linalg import null_space
 from scipy.io import loadmat, savemat
 import time
-from utility.visualization.plot import plot_complex_list
+from python.utility.visualization.plot import plot_complex_list
 
 
 def w_with_multipliers(w, multipliers):
