@@ -1,6 +1,8 @@
 import base64
 import xmlrpc.client as xmlrpclib
 import time
+import re
+import numpy as np
 
 
 neos = xmlrpclib.ServerProxy('https://neos-server.org:3333')
@@ -20,8 +22,34 @@ def neos_sdpt3_solve(sedumi_mat_file):
     # Send the job to NEOS.
     job_number, password = send_neos_job(xml)
 
-    # Get and return results.
-    return get_job_results(job_number, password)
+    # Get results.
+    results = get_job_results(job_number, password)
+
+    # Get the optimizer from results and return.
+    return extract_sdpt3_optimizer(results)
+
+
+def extract_sdpt3_optimizer(job_results):
+    """
+    NEOS results are returned in large file with other, irrelevant information. This
+    function extracts the optimizer (the data of interest) and returns it as numpy
+    vector.
+
+    :param job_results: Results from NEOS XML server.
+    :return:            Vector containing value of optimizer from job.
+    """
+
+    # Get data string from result.
+    data = str(job_results.data)
+
+    # Get string containing optimizer "y".
+    optimizer_string = data[data.rfind('y'):]
+
+    # Strip everything except data values.
+    optimizer_string = re.sub('[\\\\ny=]', '', optimizer_string)
+
+    # Turn into numpy array and return it.
+    return np.fromstring(optimizer_string).reshape(-1, 1)
 
 
 def get_job_results(job_number, password):
