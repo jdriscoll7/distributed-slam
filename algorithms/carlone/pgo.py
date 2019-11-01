@@ -1,11 +1,13 @@
-import numpy as np
 import cvxpy as cp
-from python.algorithms.carlone.matrix_creation import *
-from python.utility.parsing.g2o import parse_g2o
+
+from algorithms.carlone import w_from_vertices_and_edges
+from utility.parsing import parse_g2o
 from scipy.linalg import null_space
-from scipy.io import loadmat, savemat
 import time
-from python.utility.visualization.plot import plot_complex_list
+from utility.visualization import plot_complex_list, plot_vertices, draw_plots
+from algorithms.carlone import w_to_sedumi
+from utility.neos import neos_sdpt3_solve
+import numpy as np
 
 
 def w_with_multipliers(w, multipliers):
@@ -46,8 +48,6 @@ def solve_dual_program(w):
     :return:            lambda (solution to dual problem)
     """
 
-    return loadmat("multiplier_solution.mat")["y"]
-
     # Declare Lagrange multipliers as variable to solve dual.
     multipliers = cp.Variable(((w.shape[0] + 1) // 2,))
 
@@ -60,6 +60,21 @@ def solve_dual_program(w):
     problem.solve(verbose=True)
 
     return multipliers.value
+
+
+def solve_dual_neos(w):
+    """
+    Solves the large SDP in Carlone paper with NEOS server.
+
+    :param w:   W matrix used in optimization problem.
+    :return:    Optimizer of problem.
+    """
+
+    # Convert to sedumi and save locally.
+    w_to_sedumi(w, "sedumi_problem.mat")
+
+    # Send problem to NEOS and return solution.
+    return neos_sdpt3_solve(input_file="sedumi_problem.mat", output_file="solution.mat")
 
 
 def solve_suboptimal_program(basis):
@@ -83,20 +98,21 @@ def solve_suboptimal_program(basis):
     problem = cp.Problem(cp.Maximize(cp.sum(cp.real(basis@z) + cp.imag(basis@z))), constraints)
 
     # Solve problem.
-    problem.solve(verbose=True, solver=cp.ECOS)
+    problem.solve(verbose=True, solver=cp.SCS)
 
     # Return solution.
     return z.value
 
 
-def pgo(w):
+def pgo(w, anchor):
     """
     Implementation of algorithm 1 in Carlone paper - performs PGO given
     a W matrix, which is described in detail in paper. Code also exists
     in repository for creating W matrix from things like .g2o files.
 
-    :param w: large matrix used and described in Carlone paper
-    :return:  solution and certificate of global optimality ("true" or "unknown")
+    :param w:       large matrix used and described in Carlone paper
+    :param anchor:  first vertex - first positional output is set to this
+    :return:        solution and certificate of global optimality ("true" or "unknown")
     """
 
     # Initialize return values.
@@ -104,9 +120,20 @@ def pgo(w):
     is_optimal = ""
 
     # Solve SDP to find dual solution - time how long it takes as well.
-    print("Solving dual problem.")
-    start = time.time()
-    dual_solution = solve_dual_program(w)
+    # Currently uses NEOS server for problems with over 200 vertices - to solve manually, use solve_dual_program(w).
+    if w.shape[0] <= 50:
+
+        print("Solving dual problem manually.")
+        start = time.time()
+        dual_solution = solve_dual_program(w)
+
+    else:
+
+        print("Solving dual problem with NEOS.")
+        start = time.time()
+        dual_solution = solve_dual_neos(w)
+
+    # Print resulting time elapsed.
     print("Dual problem completed. Time elapsed: %f seconds." % (time.time() - start))
 
     # Evaluate W(lambda).
@@ -116,7 +143,7 @@ def pgo(w):
     eigenvals, eigenvecs = np.linalg.eig(w_lambda)
 
     # Count number of zero eigenvalues.
-    zero_multiplicity = np.sum(np.isclose(eigenvals, 0))
+    zero_multiplicity = np.sum(np.abs(eigenvals) < 1e-6)
 
     # If there is a single zero eigenvalue, then eigenvector corresponding to it corresponds
     # to solution.
@@ -126,11 +153,11 @@ def pgo(w):
         print("Single zero eigenvalue property holds.")
 
         # Find eigenvector corresponding to the single zero eigenvalue.
-        v = np.asarray(eigenvecs[:, np.where(np.isclose(eigenvals, 0))[0][0] - 1])
+        v = np.asarray(eigenvecs[:, np.where(np.min(np.abs(eigenvals)))[0][0] - 1])
         v = np.reshape(v, (-1, 1))
 
         # Normalize eigenvector.
-        v[v.shape[0] // 2:, :] = v[v.shape[0] // 2:, :] / np.abs(v[v.shape[0] // 2:, :])
+        v[(w.shape[0] + 1) // 2:, :] = v[(w.shape[0] + 1) // 2:, :] / np.abs(v[(w.shape[0] + 1) // 2:, :])
 
         # Set solution, and update optimality certificate.
         solution = v
@@ -155,6 +182,9 @@ def pgo(w):
         solution = x
         is_optimal = "unknown"
 
+    # Place anchored position to front of solution.
+    solution = np.vstack([anchor.state[0] + 1j*anchor.state[0], solution])
+
     # Return solution along with optimality certificate.
     return solution, is_optimal
 
@@ -164,9 +194,11 @@ if __name__ == "__main__":
     # Get w matrix.
     # vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_MITb_g2o.g2o")
     vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_MITb_g2o.g2o")
-    w = w_from_vertices_and_edges(vertices, edges)
+    w, anchor = w_from_vertices_and_edges(vertices, edges)
 
     # Run algorithm 1 from Carlone paper.
-    solution = pgo(w)
-    plot_complex_list(solution[0])
+    solution = pgo(w, anchor)
+    plot_complex_list(solution[0][:len(vertices)])
+    plot_vertices(vertices)
+    draw_plots()
 

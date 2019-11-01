@@ -3,21 +3,22 @@ import xmlrpc.client as xmlrpclib
 import time
 import re
 import numpy as np
+from scipy.io import savemat
 
 
 neos = xmlrpclib.ServerProxy('https://neos-server.org:3333')
 
 
-def neos_sdpt3_solve(sedumi_mat_file):
+def neos_sdpt3_solve(input_file, output_file):
     """
     Sends sdpt3 job to NEOS and returns results.
 
-    :param sedumi_mat_file: Path to mat file with sedumi solver format.
-    :return:                Results of NEOS job.
+    :param input_file:  Path to mat file with sedumi solver format.
+    :return:            Results of NEOS job.
     """
 
     # Generate xml for job.
-    xml = generate_sdpt3_xml(sedumi_mat_file)
+    xml = generate_sdpt3_xml(input_file)
 
     # Send the job to NEOS.
     job_number, password = send_neos_job(xml)
@@ -25,8 +26,13 @@ def neos_sdpt3_solve(sedumi_mat_file):
     # Get results.
     results = get_job_results(job_number, password)
 
-    # Get the optimizer from results and return.
-    return extract_sdpt3_optimizer(results)
+    # Get the optimizer from results.
+    optimizer = extract_sdpt3_optimizer(results)
+
+    # Save results in output_file and return.
+    savemat(output_file, {"optimizer": optimizer})
+
+    return optimizer
 
 
 def extract_sdpt3_optimizer(job_results):
@@ -47,9 +53,13 @@ def extract_sdpt3_optimizer(job_results):
 
     # Strip everything except data values.
     optimizer_string = re.sub('[\\\\ny=]', '', optimizer_string)
+    optimizer_string = optimizer_string[:optimizer_string.find('>>')]
+
+    # Turn into array of floats.
+    optimizer_array = [float(x) for x in optimizer_string.split()]
 
     # Turn into numpy array and return it.
-    return np.fromstring(optimizer_string).reshape(-1, 1)
+    return np.array(optimizer_array).reshape(-1, 1)
 
 
 def get_job_results(job_number, password):

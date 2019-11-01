@@ -1,4 +1,4 @@
-from python.utility.parsing.g2o import parse_g2o
+from utility.parsing import parse_g2o
 from matplotlib import pyplot as plt
 import numpy as np
 
@@ -13,7 +13,6 @@ def plot_complex_list(data):
     plt.figure()
     plt.plot(x, y, '-')
     plt.axis('off')
-    plt.show()
 
 
 def plot_vertices(vertices):
@@ -26,6 +25,11 @@ def plot_vertices(vertices):
     plt.figure()
     plt.plot(x, y, '-')
     plt.axis('off')
+
+
+def draw_plots():
+
+    plt.show()
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 import numpy as np
-from python.utility.parsing.g2o import parse_g2o
+from utility.parsing.g2o import parse_g2o
 
 
 def rotation_matrix_2d(theta):
@@ -35,7 +35,7 @@ def create_d_matrix(edges, n_vertices):
                                 [edge.relative_pose[1], edge.relative_pose[0]]])
 
         # Set the block matrix at block row i, block column vertex_out to submatrix.
-        d[i:(i + 2), edge.out_vertex:(edge.out_vertex + 2)] = submatrix
+        d[i:(i + 2), 2*edge.out_vertex:(2*edge.out_vertex + 2)] = submatrix
 
     return d
 
@@ -57,11 +57,11 @@ def create_u_matrix(edges, n_vertices):
         edge = edges[i // 2]
 
         # Compute first submatrix (just a negative rotation matrix) - second is 2x2 identity.
-        r_ij = -rotation_matrix_2d(edge.rotation)
+        r_ij = rotation_matrix_2d(edge.rotation)
 
         # Set the block matrix at block row i, block column vertex_out to submatrix.
-        u[i:(i + 2), edge.out_vertex:(edge.out_vertex + 2)] = r_ij
-        u[i:(i + 2), edge.in_vertex:(edge.in_vertex + 2)] = np.eye(2)
+        u[i:(i + 2), 2*edge.out_vertex:(2*edge.out_vertex + 2)] = -r_ij
+        u[i:(i + 2), 2*edge.in_vertex:(2*edge.in_vertex + 2)] = np.eye(2)
 
     return u
 
@@ -158,8 +158,6 @@ def create_w_matrix(a, d, u):
     reduced_u = complex_reduce_matrix(u)
     reduced_d = complex_reduce_matrix(d)
 
-    d2 = d[0:100,0:100]
-
     # Compute entries of W block-wise.
     w_11 = a.T * a
     w_12 = a.T * reduced_d
@@ -187,11 +185,11 @@ def w_from_g2o(path):
 
 def w_from_vertices_and_edges(vertices, edges):
     """
-    Creates the W matrix used in Carlone paper from list of vertices and edges.
+    Creates the W matrix fromused in Carlone paper from list of vertices and edges.
 
     :param vertices:    list of vertices from g2o file
     :param edges:       list of edges from g2o file
-    :return:            W matrix used in SDP problem by Carlone
+    :return:            W matrix used in SDP problem by Carlone, anchored vertex
     """
 
     # Create the three inputs needed to create W matrix.
@@ -200,7 +198,7 @@ def w_from_vertices_and_edges(vertices, edges):
     u = create_u_matrix(edges, len(vertices))
 
     # Create and return w matrix.
-    return create_w_matrix(a, d, u)
+    return create_w_matrix(a, d, u), vertices[0]
 
 
 if __name__ == "__main__":
@@ -212,7 +210,7 @@ if __name__ == "__main__":
     #
     # print(complex_reduce_matrix(A).H)
 
-    w = w_from_g2o("/home/joe/repositories/distributed-slam/datasets/input_INTEL_g2o.g2o")
+    w = w_from_g2o("/home/joe/repositories/distributed-slam/datasets/input_MITb_cut.g2o")
     print(w)
 
 
