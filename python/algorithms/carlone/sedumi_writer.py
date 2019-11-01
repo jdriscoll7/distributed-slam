@@ -4,8 +4,8 @@
 import numpy as np
 from scipy.io import savemat
 from scipy.sparse import csc_matrix, csr_matrix
-from utility.parsing.g2o import *
-from algorithms.carlone.matrix_creation import *
+from python.utility.parsing.g2o import *
+from python.algorithms.carlone.matrix_creation import *
 
 
 def w_to_sedumi(w, output_file):
@@ -45,7 +45,7 @@ if __name__ == "__main__":
 
     # Get w matrix.
     # vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_MITb_g2o.g2o")
-    vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_MITb_g2o.g2o")
+    vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_INTEL_g2o.g2o")
     w = w_from_vertices_and_edges(vertices, edges)
 
     w_to_sedumi(w, "test.mat")
