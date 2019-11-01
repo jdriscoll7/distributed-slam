@@ -153,7 +153,7 @@ def pgo(w, anchor):
         print("Single zero eigenvalue property holds.")
 
         # Find eigenvector corresponding to the single zero eigenvalue.
-        v = np.asarray(eigenvecs[:, np.where(np.min(np.abs(eigenvals)))[0][0] - 1])
+        v = np.asarray(eigenvecs[:, np.where(np.abs(eigenvals) == np.min(np.abs(eigenvals)))[0][0] - 1])
         v = np.reshape(v, (-1, 1))
 
         # Normalize eigenvector.
