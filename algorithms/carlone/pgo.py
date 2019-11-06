@@ -193,7 +193,7 @@ if __name__ == "__main__":
 
     # Get w matrix.
     # vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_MITb_g2o.g2o")
-    vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_MITb_g2o.g2o")
+    vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_INTEL_g2o.g2o")
     w, anchor = w_from_vertices_and_edges(vertices, edges)
 
     # Run algorithm 1 from Carlone paper.
