@@ -1,6 +1,7 @@
 import cvxpy as cp
 
 from algorithms.carlone import w_from_vertices_and_edges
+from utility.data_generation import create_random_dataset
 from utility.parsing import parse_g2o
 from scipy.linalg import null_space
 import time
@@ -98,7 +99,7 @@ def solve_suboptimal_program(basis):
     problem = cp.Problem(cp.Maximize(cp.sum(cp.real(basis@z) + cp.imag(basis@z))), constraints)
 
     # Solve problem.
-    problem.solve(verbose=True, solver=cp.SCS)
+    problem.solve(verbose=True)
 
     # Return solution.
     return z.value
@@ -143,7 +144,7 @@ def pgo(w, anchor):
     eigenvals, eigenvecs = np.linalg.eig(w_lambda)
 
     # Count number of zero eigenvalues.
-    zero_multiplicity = np.sum(np.abs(eigenvals) < 1e-6)
+    zero_multiplicity = np.sum(np.abs(eigenvals) < 1e-5)
 
     # If there is a single zero eigenvalue, then eigenvector corresponding to it corresponds
     # to solution.
@@ -183,7 +184,7 @@ def pgo(w, anchor):
         is_optimal = "unknown"
 
     # Place anchored position to front of solution.
-    solution = np.vstack([anchor.state[0] + 1j*anchor.state[0], solution])
+    solution = np.vstack([anchor.state[0] + 1j*anchor.state[1], solution])
 
     # Return solution along with optimality certificate.
     return solution, is_optimal
@@ -191,9 +192,9 @@ def pgo(w, anchor):
 
 if __name__ == "__main__":
 
-    # Get w matrix.
-    # vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_MITb_g2o.g2o")
-    vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_INTEL_g2o.g2o")
+    # Generate random dataset and read it.
+    create_random_dataset(0.1, 0.1, 10, 'random_test.g2o')
+    vertices, edges = parse_g2o("random_test.g2o")
     w, anchor = w_from_vertices_and_edges(vertices, edges)
 
     # Run algorithm 1 from Carlone paper.
@@ -201,4 +202,15 @@ if __name__ == "__main__":
     plot_complex_list(solution[0][:len(vertices)])
     plot_vertices(vertices)
     draw_plots()
+
+    # Get w matrix.
+    # vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_MITb_g2o.g2o")
+    # vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_INTEL_g2o.g2o")
+    # w, anchor = w_from_vertices_and_edges(vertices, edges)
+    #
+    # # Run algorithm 1 from Carlone paper.
+    # solution = pgo(w, anchor)
+    # plot_complex_list(solution[0][:len(vertices)])
+    # plot_vertices(vertices)
+    # draw_plots()
 
