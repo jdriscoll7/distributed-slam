@@ -12,7 +12,8 @@ def plot_complex_list(data):
     # Plot these pairs of coordinates.
     plt.figure()
     plt.plot(x, y, '-')
-    plt.axis('off')
+    plt.ylim(top=1.1 ** (np.sign(np.max(y))) * np.max(y), bottom=1.1 ** (-1 * np.sign(np.min(y))) * np.min(y))
+    plt.xlim(right=1.1 ** (np.sign(np.max(x))) * np.max(x), left=1.1 ** (-1 * np.sign(np.min(x))) * np.min(x))
 
 
 def plot_vertices(vertices):
@@ -24,7 +25,8 @@ def plot_vertices(vertices):
     # Plot these pairs of coordinates.
     plt.figure()
     plt.plot(x, y, '-')
-    plt.axis('off')
+    plt.ylim(top=1.1**(np.sign(np.max(y)))*np.max(y), bottom=1.1**(-1 * np.sign(np.min(y)))*np.min(y))
+    plt.xlim(right=1.1**(np.sign(np.max(x)))*np.max(x), left=1.1**(-1 * np.sign(np.min(x)))*np.min(x))
 
 
 def draw_plots():

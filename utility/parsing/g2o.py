@@ -73,7 +73,7 @@ def write_g2o(vertices, edges, file_name):
         state_string = " ".join(map(str, [x[0] for x in vertex.state]))
 
         # Write line to file.
-        file.write("VERTEX " + str(vertex.id) + " " + state_string + "\n")
+        file.write("VERTEX_SE2 " + str(vertex.id) + " " + state_string + "\n")
 
     for edge in edges:
 
@@ -87,7 +87,7 @@ def write_g2o(vertices, edges, file_name):
         matrix_string = " ".join(str(x[1]) for x in np.ndenumerate(edge.information_matrix[np.triu_indices(3)]))
 
         # Write line to file.
-        file.write("EDGE " + edge_string + " " + matrix_string + "\n")
+        file.write("EDGE_SE2 " + edge_string + " " + matrix_string + "\n")
 
     # Close data file.
     file.close()
