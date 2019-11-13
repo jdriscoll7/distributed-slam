@@ -11,9 +11,10 @@ from matplotlib import pyplot as plt
 
 
 # Some simple demo parameters.
-INPUT_FILE = "../datasets/input_INTEL_cut.g2o"
+#INPUT_FILE = "../algorithms/carlone/random_test.g2o"
+INPUT_FILE = "../datasets/input_MITb_g2o.g2o"
 OUTPUT_FILE = "result.g2o"
-MAX_ITERATIONS = 560
+MAX_ITERATIONS = 10000
 LOGGING = True
 
 
@@ -21,7 +22,8 @@ def run_optimizer():
 
     # Setup solver.
     solver = g2o.BlockSolverSE2(g2o.LinearSolverEigenSE2())
-    solver = g2o.OptimizationAlgorithmLevenberg(solver)
+    #solver = g2o.BlockSolverSE2(g2o.LinearSolverCholmodSE2())
+    solver = g2o.OptimizationAlgorithmDogleg(solver)
 
     # Setup optimizer with optional console logging.
     optimizer = g2o.SparseOptimizer()

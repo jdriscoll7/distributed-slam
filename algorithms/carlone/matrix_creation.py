@@ -198,7 +198,7 @@ def w_from_vertices_and_edges(vertices, edges):
     u = create_u_matrix(edges, len(vertices))
 
     # Create and return w matrix.
-    return create_w_matrix(a, d, u), vertices[0]
+    return create_w_matrix(a, d, u)
 
 
 if __name__ == "__main__":

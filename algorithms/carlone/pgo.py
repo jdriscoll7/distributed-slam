@@ -105,7 +105,7 @@ def solve_suboptimal_program(basis):
     return z.value
 
 
-def pgo(w, anchor):
+def pgo(w):
     """
     Implementation of algorithm 1 in Carlone paper - performs PGO given
     a W matrix, which is described in detail in paper. Code also exists
@@ -122,7 +122,7 @@ def pgo(w, anchor):
 
     # Solve SDP to find dual solution - time how long it takes as well.
     # Currently uses NEOS server for problems with over 200 vertices - to solve manually, use solve_dual_program(w).
-    if w.shape[0] <= 50:
+    if False: #w.shape[0] <= 50:
 
         print("Solving dual problem manually.")
         start = time.time()
@@ -144,7 +144,7 @@ def pgo(w, anchor):
     eigenvals, eigenvecs = np.linalg.eig(w_lambda)
 
     # Count number of zero eigenvalues.
-    zero_multiplicity = np.sum(np.abs(eigenvals) < 1e-5)
+    zero_multiplicity = np.sum(np.abs(eigenvals) < 1e-6)
 
     # If there is a single zero eigenvalue, then eigenvector corresponding to it corresponds
     # to solution.
@@ -154,11 +154,11 @@ def pgo(w, anchor):
         print("Single zero eigenvalue property holds.")
 
         # Find eigenvector corresponding to the single zero eigenvalue.
-        v = np.asarray(eigenvecs[:, np.where(np.abs(eigenvals) == np.min(np.abs(eigenvals)))[0][0] - 1])
+        v = np.asarray(eigenvecs[:, np.where(np.abs(eigenvals) == np.min(np.abs(eigenvals)))[0][0]])
         v = np.reshape(v, (-1, 1))
 
         # Normalize eigenvector.
-        v[(w.shape[0] + 1) // 2:, :] = v[(w.shape[0] + 1) // 2:, :] / np.abs(v[(w.shape[0] + 1) // 2:, :])
+        v = v / np.abs(v[-1])
 
         # Set solution, and update optimality certificate.
         solution = v
@@ -184,7 +184,7 @@ def pgo(w, anchor):
         is_optimal = "unknown"
 
     # Place anchored position to front of solution.
-    solution = np.vstack([anchor.state[0] + 1j*anchor.state[1], solution])
+    solution = np.vstack([0, solution])
 
     # Return solution along with optimality certificate.
     return solution, is_optimal
@@ -193,24 +193,24 @@ def pgo(w, anchor):
 if __name__ == "__main__":
 
     # Generate random dataset and read it.
-    create_random_dataset(0.1, 0.1, 10, 'random_test.g2o')
-    vertices, edges = parse_g2o("random_test.g2o")
-    w, anchor = w_from_vertices_and_edges(vertices, edges)
-
-    # Run algorithm 1 from Carlone paper.
-    solution = pgo(w, anchor)
-    plot_complex_list(solution[0][:len(vertices)])
-    plot_vertices(vertices)
-    draw_plots()
-
-    # Get w matrix.
-    # vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_MITb_g2o.g2o")
-    # vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_INTEL_g2o.g2o")
-    # w, anchor = w_from_vertices_and_edges(vertices, edges)
+    # create_random_dataset(0.1, 0.1, 20, 'random_test.g2o')
+    # vertices, edges = parse_g2o("random_test.g2o")
+    # w = w_from_vertices_and_edges(vertices, edges)
     #
     # # Run algorithm 1 from Carlone paper.
-    # solution = pgo(w, anchor)
+    # solution = pgo(w)
     # plot_complex_list(solution[0][:len(vertices)])
     # plot_vertices(vertices)
     # draw_plots()
+
+    # Get w matrix.
+    vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_MITb_g2o.g2o")
+    #vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_INTEL_g2o.g2o")
+    w = w_from_vertices_and_edges(vertices, edges)
+
+    # # Run algorithm 1 from Carlone paper.
+    solution = pgo(w)
+    plot_complex_list(solution[0][:len(vertices)])
+    plot_vertices(vertices)
+    draw_plots()
 

@@ -20,12 +20,20 @@ def w_to_sedumi(w, output_file):
     # W matrix gets put into c in sedumi format.
     c = csr_matrix(w.flatten('F'))
 
+    # Store dimension of optimization variable.
+    dimension = (w.shape[0] // 2) + 1
+
     # Summing lambdas - vector of ones.
-    b = np.ones((w.shape[0] // 2, 1))
+    b = np.ones((dimension, 1))
 
     # Build A matrix.
-    a = csc_matrix((w.shape[0]*w.shape[0], w.shape[0] // 2))
-    a[-((w.shape[0] - 1) // 2):, -((w.shape[0] - 1) // 2):] = np.eye((w.shape[0] // 2))
+    a = csc_matrix((w.shape[0]*w.shape[0], dimension))
+
+    # Set the 1's in the A matrix.
+    a[w.shape[0] * w.shape[0] - 1, dimension - 1] = 1
+
+    for i in range(1, dimension):
+        a[w.shape[0]*w.shape[0] - (w.shape[0] + 1)*i - 1, dimension - i - 1] = 1
 
     # Construct K matrix for PSD constraint.
     k_s = w.shape[0]
