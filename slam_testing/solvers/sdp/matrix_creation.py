@@ -1,5 +1,5 @@
 import numpy as np
-from utility.parsing.g2o import parse_g2o
+from utility.parsing import parse_g2o
 
 
 def rotation_matrix_2d(theta):

@@ -1,14 +1,12 @@
-import cvxpy as cp
-
-from algorithms.carlone import w_from_vertices_and_edges
-from utility.data_generation import create_random_dataset
-from utility.parsing import parse_g2o
-from scipy.linalg import null_space
 import time
-from utility.visualization import plot_complex_list, plot_vertices, draw_plots
-from algorithms.carlone import w_to_sedumi
-from utility.neos import neos_sdpt3_solve
+import cvxpy as cp
 import numpy as np
+from scipy.linalg import null_space
+
+from solvers.sdp import w_from_vertices_and_edges, w_to_sedumi
+from utility.parsing import parse_g2o
+from utility.visualization import plot_complex_list, plot_vertices, draw_plots
+from utility.neos import neos_sdpt3_solve
 
 
 def w_with_multipliers(w, multipliers):
@@ -204,8 +202,8 @@ if __name__ == "__main__":
     # draw_plots()
 
     # Get w matrix.
-    # vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_MITb_g2o.g2o")
     vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_INTEL_g2o.g2o")
+    # vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_INTEL_g2o.g2o")
     w = w_from_vertices_and_edges(vertices, edges)
 
     # # Run algorithm 1 from Carlone paper.

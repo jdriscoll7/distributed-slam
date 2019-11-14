@@ -1,5 +1,5 @@
 import numpy as np
-from utility.parsing.g2o import Vertex, Edge, write_g2o
+from slam_testing.utility import Vertex, Edge, write_g2o
 
 
 def rotation_matrix(theta):
