@@ -5,14 +5,14 @@ sys.path.extend([path.dirname(path.abspath(__file__)) + "/../"])
 
 # Import g2o bindings, some custom plotting/parsing functions, and matplotlib.
 import g2o
-from slam_testing.utility import parse_g2o
-from slam_testing.utility import plot_vertices
+from utility.parsing import parse_g2o
+from utility.visualization import plot_vertices
 from matplotlib import pyplot as plt
 
 
 # Some simple demo parameters.
 #INPUT_FILE = "../solvers/sdp/random_test.g2o"
-INPUT_FILE = "../datasets/input_INTEL_g2o.g2o"
+INPUT_FILE = "../../datasets/input_INTEL_g2o.g2o"
 OUTPUT_FILE = "result.g2o"
 MAX_ITERATIONS = 10000
 LOGGING = True
