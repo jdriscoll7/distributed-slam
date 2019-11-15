@@ -1,4 +1,6 @@
 import numpy as np
+from os import makedirs
+from os.path import dirname
 
 
 class Vertex:
@@ -62,6 +64,9 @@ def parse_g2o(path):
 
 
 def write_g2o(vertices, edges, file_name):
+
+    # Make sure directory of file name exists - if not, create it.
+    makedirs(dirname(file_name), exist_ok=True)
 
     # Open data file.
     file = open(file_name, 'w')

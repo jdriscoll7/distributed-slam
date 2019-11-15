@@ -61,8 +61,18 @@ def remove_vertex(vertices, edges, vertex_id):
     # Initialize output details.
     edges_removed = 0
 
-    # Remove vertex from vertex list.
-    new_vertices = [v for v in vertices if v.id != vertex_id]
+    # Remove vertex from vertex list and update ids.
+    new_vertices = []
+
+    for v in vertices:
+        if v.id != vertex_id:
+
+            # Decrease id by one if its id is greater than the one being removed.
+            if v.id > vertex_id:
+                v.id -= 1
+
+            # Add this vertex to new vertex list.
+            new_vertices.append(v)
 
     # Initialize new edge list.
     new_edges = []
@@ -78,7 +88,11 @@ def remove_vertex(vertices, edges, vertex_id):
 
         else:
 
-            # Edge doesn't contain target vertex - add to new edge list.
+            # Update ids.
+            edge.in_vertex -= 1 if edge.in_vertex > vertex_id else 0
+            edge.out_vertex -= 1 if edge.out_vertex > vertex_id else 0
+
+            # Edge doesn't contain target vertex.
             new_edges.append(edge)
 
     return new_vertices, new_edges, edges_removed

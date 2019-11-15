@@ -12,18 +12,17 @@ from matplotlib import pyplot as plt
 
 # Some simple demo parameters.
 #INPUT_FILE = "../solvers/sdp/random_test.g2o"
-INPUT_FILE = "../../datasets/input_INTEL_g2o.g2o"
+INPUT_FILE = "/home/joe/repositories/distributed-slam/slam_testing/examples/generated_data/abc.g2o"
 OUTPUT_FILE = "result.g2o"
-MAX_ITERATIONS = 10000
+MAX_ITERATIONS = 100
 LOGGING = True
 
 
 def run_optimizer():
 
     # Setup solver.
-    solver = g2o.BlockSolverSE2(g2o.LinearSolverEigenSE2())
-    #solver = g2o.BlockSolverSE2(g2o.LinearSolverCholmodSE2())
-    solver = g2o.OptimizationAlgorithmLevenberg(solver)
+    solver = g2o.BlockSolverSE2(g2o.LinearSolverPCGSE2())
+    solver = g2o.OptimizationAlgorithmGaussNewton(solver)
 
     # Setup optimizer with optional console logging.
     optimizer = g2o.SparseOptimizer()
