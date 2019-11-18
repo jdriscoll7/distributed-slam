@@ -169,11 +169,12 @@ def _pgo(w):
         # Set solution and optimality certificate.
         solution = x
 
-    # Place anchored position to front of solution.
-    solution = np.vstack([0, solution])
+    # Split solution into positions and rotations.
+    positions = np.vstack([0, solution[:len(solution)//2]])
+    rotations = np.vstack([0, solution[len(solution)//2:]])
 
     # Return solution along with optimality certificate.
-    return solution, dual_solution
+    return positions, rotations, dual_solution
 
 
 def pgo(x, y=None):
@@ -223,7 +224,7 @@ if __name__ == "__main__":
     # # Run algorithm 1 from Carlone paper.
     #solution = _pgo(w)
     solution = pgo("/home/joe/repositories/distributed-slam/slam_testing/examples/generated_data/abc.g2o")
-    plot_complex_list(solution[0][:len(vertices)])
+    plot_complex_list(solution[0])
     plot_vertices(vertices)
     draw_plots()
 

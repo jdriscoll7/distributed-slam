@@ -1,3 +1,6 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
 from solvers.sdp import pgo
 from perturbations import delete_random_vertices
 from utility.data_generation import create_random_dataset
@@ -23,10 +26,10 @@ if __name__ == "__main__":
     while len(vertices) > 1:
 
         # Run pgo.
-        solution, dual_solution = pgo(vertices, edges)
+        positions, rotations, dual_solution = pgo(vertices, edges)
 
         # Append output to results variable.
-        results["solutions"].append(solution)
+        results["solutions"].append(positions)
         results["dual_solutions"].append(dual_solution)
 
         # Remove single, random vertex.
@@ -35,4 +38,16 @@ if __name__ == "__main__":
         # Append number of edgees removed to results.
         results["edges_removed"].append(edges_removed)
 
-    print("Finished.")
+    # Compute dual values.
+    dual_values = [np.sum(x) for x in results["dual_solutions"]]
+
+    # Plot dual value vs number of vertices removed.
+    plt.figure()
+    plt.plot(dual_values)
+
+    # Plot histogram of percent change of dual value vs. number of edges removed.
+    plt.figure()
+    plt.scatter([x for x in results["edges_removed"]],
+                [(dual_values[i + 1] - dual_values[i]) / dual_values[i] for i in range(len(dual_values) - 1)])
+
+    plt.show()
