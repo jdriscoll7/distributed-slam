@@ -13,7 +13,7 @@ if __name__ == "__main__":
     FILE_PATH = "generated_data/abc.g2o"
 
     # Create random dataset.
-    create_random_dataset(0.1, 0.1, 30, FILE_PATH)
+    create_random_dataset(0.1, 0.1, 5, FILE_PATH)
 
     # Read in vertices and edges from created dataset.
     vertices, edges = parse_g2o(FILE_PATH)
@@ -33,10 +33,10 @@ if __name__ == "__main__":
         results["dual_solutions"].append(dual_solution)
 
         # Remove single, random vertex.
-        vertices, edges, edges_removed = delete_random_vertices(vertices, edges, n=1)
+        vertices, edges, removed = delete_random_vertices(vertices, edges, n=1)
 
         # Append number of edgees removed to results.
-        results["edges_removed"].append(edges_removed)
+        results["edges_removed"].append(removed[0])
 
     # Compute dual values.
     dual_values = [np.sum(x) for x in results["dual_solutions"]]
@@ -47,7 +47,7 @@ if __name__ == "__main__":
 
     # Plot histogram of percent change of dual value vs. number of edges removed.
     plt.figure()
-    plt.scatter([x for x in results["edges_removed"]],
+    plt.scatter([x for x in len(results["edges_removed"][:-1])],
                 [(dual_values[i + 1] - dual_values[i]) / dual_values[i] for i in range(len(dual_values) - 1)])
 
     plt.show()

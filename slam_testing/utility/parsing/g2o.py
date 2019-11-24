@@ -2,22 +2,7 @@ import numpy as np
 from os import makedirs
 from os.path import dirname
 
-
-class Vertex:
-
-    def __init__(self, id, state):
-        self.id = id
-        self.state = state
-
-
-class Edge:
-
-    def __init__(self, out_vertex, in_vertex, relative_pose, rotation, information_matrix):
-        self.out_vertex = out_vertex
-        self.in_vertex = in_vertex
-        self.relative_pose = relative_pose
-        self.rotation = rotation
-        self.information_matrix = information_matrix
+from utility.graph import *
 
 
 def parse_g2o(path):

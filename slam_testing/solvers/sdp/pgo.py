@@ -135,7 +135,7 @@ def _pgo(w):
 
     # If there is a single zero eigenvalue, then eigenvector corresponding to it corresponds
     # to solution.
-    if True: #zero_multiplicity == 1:
+    if zero_multiplicity == 1 or zero_multiplicity == 0:
 
         # Logging information.
         print("Single zero eigenvalue property holds.")

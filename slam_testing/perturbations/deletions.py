@@ -1,5 +1,7 @@
 import random
 
+from utility.graph import *
+
 
 def delete_random_vertices(vertices, edges, n):
     """
@@ -34,16 +36,16 @@ def remove_vertices(vertices, edges, vertex_ids):
                         deleted in the end
     """
 
-    # Need separate details variable to sum up results of individual removals.
-    edges_removed = 0
+    # Maintain list of edges removed for each vertex.
+    removed_edges = []
 
     for vertex_id in vertex_ids:
 
         # Remove individual vertex and increment number of edges removed.
-        vertices, edges, n_removed = remove_vertex(vertices, edges, vertex_id)
-        edges_removed += n_removed
+        vertices, edges, removed = remove_vertex(vertices, edges, vertex_id)
+        removed_edges.append(removed)
 
-    return vertices, edges, edges_removed
+    return vertices, edges, removed_edges
 
 
 def remove_vertex(vertices, edges, vertex_id):
@@ -59,7 +61,7 @@ def remove_vertex(vertices, edges, vertex_id):
     """
 
     # Initialize output details.
-    edges_removed = 0
+    edges_removed = []
 
     # Remove vertex from vertex list and update ids.
     new_vertices = []
@@ -84,7 +86,7 @@ def remove_vertex(vertices, edges, vertex_id):
         if edge.in_vertex == vertex_id or edge.out_vertex == vertex_id:
 
             # Increment number of edges removed.
-            edges_removed += 1
+            edges_removed.append(edge)
 
         else:
 
