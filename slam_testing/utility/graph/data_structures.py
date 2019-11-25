@@ -4,8 +4,8 @@ class Vertex:
         self.id = id
         self.state = state
 
-    def get_connected_edges(self, edges):
-        return get_connected_edges(self.id, edges)
+    def get_connected_edges(self, edges, vertices):
+        return get_connected_edges(self.id, edges, vertices)
 
 
 class Edge:
@@ -18,7 +18,7 @@ class Edge:
         self.information_matrix = information_matrix
 
 
-def get_connected_edges(vertex_id, edges):
+def get_connected_edges(vertex_id, edges, vertices):
     """
     Returns all edges connected to a particular vertex id.
 
@@ -27,10 +27,15 @@ def get_connected_edges(vertex_id, edges):
     :return:            List of edges that have this vertex as in or out vertex.
     """
 
+    # Maintain list of edges that are connect to input vertex.
     connected_edges = []
+
+    # Create list of vertex ids that this edge can be connected to.
+    valid_ids = [v.id for v in vertices]
 
     for edge in edges:
         if edge.in_vertex == vertex_id or edge.out_vertex == vertex_id:
-            connected_edges.append(edge)
+            if edge.in_vertex in valid_ids or edge.out_vertex in valid_ids:
+                connected_edges.append(edge)
 
     return connected_edges
