@@ -30,9 +30,12 @@ def create_d_matrix(edges, n_vertices):
         # Get current edge.
         edge = edges[i // 2]
 
+        # Make sure shape of relative pose is as-expected.
+        relative_pose = edge.relative_pose.flatten()
+
         # Compute current 2x2 submatrix (D_{ij} in Carlone paper).
-        submatrix = -np.matrix([[edge.relative_pose[0], -edge.relative_pose[1]],
-                                [edge.relative_pose[1], edge.relative_pose[0]]])
+        submatrix = -np.matrix([[relative_pose[0], -relative_pose[1]],
+                                [relative_pose[1], relative_pose[0]]])
 
         # Set the block matrix at block row i, block column vertex_out to submatrix.
         d[i:(i + 2), 2*edge.out_vertex:(2*edge.out_vertex + 2)] = submatrix
