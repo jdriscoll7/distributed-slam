@@ -18,5 +18,5 @@ cd test
 ```
 which will output some g2o logging information, along with a plot of the raw input data and the PGO result as shown below.
 
-![](images/test_1.png)
-![](images/test_2.png)
+![](images/pgo_output/test_1.png)
+![](images/pgo_output/test_2.png)
