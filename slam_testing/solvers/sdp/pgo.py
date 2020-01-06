@@ -103,14 +103,15 @@ def solve_suboptimal_program(basis):
     return z.value
 
 
-def _pgo(w):
+def _pgo(w, anchor_rotation=0):
     """
     Implementation of algorithm 1 in Carlone paper - performs PGO given
     a W matrix, which is described in detail in paper. Code also exists
     in repository for creating W matrix from things like .g2o files.
 
-    :param w:       large matrix used and described in Carlone paper
-    :return:        solution and details
+    :param w:               large matrix used and described in Carlone paper
+    :param anchor_rotation: predetermined rotation for first vertex - defaults to 0
+    :return:                solution and details
     """
 
     # Initialize return values.
@@ -171,32 +172,33 @@ def _pgo(w):
 
     # Split solution into positions and rotations.
     positions = np.vstack([0, solution[:len(solution)//2]])
-    rotations = np.vstack([0, solution[len(solution)//2:]])
+    rotations = np.vstack([anchor_rotation, solution[len(solution)//2:]])
 
     # Return solution along with optimality certificate.
     return positions, rotations, dual_solution
 
 
-def pgo(x, y=None):
+def pgo(x, y=None, anchor_rotation=None):
     """
     Wrapper for main pgo function. Can take file name or W matrix directly.
 
     :param x:   Either W matrix, file name, or vertices.
     :param y:   Either None or edges.
+    :param anchor_rotation: Predetermined rotation for first vertex - defaults to 0.
     :return:    Solution to PGO problem found with SDP.
     """
 
     # If y is not empty, then arguments are vertices and edges.
     if y is not None:
-        return _pgo(w_from_vertices_and_edges(x, y))
+        return _pgo(w_from_vertices_and_edges(x, y), anchor_rotation=anchor_rotation)
 
     # If type is a string, then input is a file name.
     if isinstance(x, str):
-        return _pgo(w_from_vertices_and_edges(*parse_g2o(x)))
+        return _pgo(w_from_vertices_and_edges(*parse_g2o(x)), anchor_rotation=anchor_rotation)
 
     # If type is a numpy array, then the input is the W matrix.
     if isinstance(x, np.ndarray):
-        return _pgo(x)
+        return _pgo(x, anchor_rotation=anchor_rotation)
 
     # Raise error otherwise.
     else:

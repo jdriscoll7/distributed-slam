@@ -1,5 +1,6 @@
 import numpy as np
 from utility.parsing import Vertex, Edge, write_g2o
+from .grouped_data import group_datasets
 
 
 def _rotation_matrix(theta):
@@ -26,7 +27,7 @@ def _create_vertex_list(truth_states):
     return [Vertex(i, truth_states[i]) for i in range(len(truth_states))]
 
 
-def create_random_dataset(translation_variance, rotation_variance, n_poses, file_name):
+def create_random_dataset(translation_variance, rotation_variance, n_poses, file_name=None):
 
     # Generate truth poses and rotations.
     truth_coordinates = [np.random.uniform(0, 10, (2, 1)) for _ in range(n_poses)]
@@ -59,10 +60,32 @@ def create_random_dataset(translation_variance, rotation_variance, n_poses, file
     vertices = _create_vertex_list(truth_states)
     edges = _create_edge_list(edge_ids, translation_measurements, rotation_measurements)
 
-    # Write results.
-    write_g2o(vertices, edges, file_name)
+    # Write results if desired.
+    if file_name != None:
+        write_g2o(vertices, edges, file_name)
 
     return vertices, edges
+
+
+def create_random_grouped_dataset(translation_variance, rotation_variance, n_poses, file_name):
+
+    vertex_lists, edge_lists = [], []
+
+    for n in n_poses:
+
+        # Create random dataset for one group.
+        v, e = create_random_dataset(translation_variance, rotation_variance, n)
+
+        # Append created graph to lists.
+        vertex_lists.append(v)
+        edge_lists.append(e)
+
+    multigraph = group_datasets(vertex_lists, edge_lists)
+    vertices, edges, group_ids = multigraph.get_full_graph()
+
+    write_g2o(vertices, edges, file_name, group_ids=group_ids)
+
+    return multigraph
 
 
 if __name__ == "__main__":
