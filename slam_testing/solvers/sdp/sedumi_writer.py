@@ -3,7 +3,7 @@
 
 import numpy as np
 from scipy.io import savemat
-from scipy.sparse import csc_matrix, csr_matrix
+from scipy.sparse import csc_matrix, csr_matrix, lil_matrix
 
 from utility.parsing import parse_g2o
 from solvers.sdp.matrix_creation import w_from_vertices_and_edges

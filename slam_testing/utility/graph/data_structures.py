@@ -1,11 +1,45 @@
+import numpy as np
+
+
 class Vertex:
 
     def __init__(self, id, state):
         self.id = id
         self.state = state
 
+    def set_state(self, position, rotation):
+
+        # Force correct type for rotation.
+        if isinstance(rotation, complex):
+            rotation = np.angle(rotation)
+
+        self.state[0] = np.real(position)
+        self.state[1] = np.imag(position)
+        self.state[2] = rotation
+
     def get_connected_edges(self, edges, vertices):
         return get_connected_edges(self.id, edges, vertices)
+
+    def rotate(self, angle, origin=(0, 0)):
+
+        # Precompute needed trigonometric values.
+        cos_angle = np.cos(angle)
+        sin_angle = np.sin(angle)
+
+        # Store x and y coordinate of state for brevity.
+        x = self.state[0] - origin[0]
+        y = self.state[1] - origin[1]
+
+        # Compute new position coordinates.
+        new_x = origin[0] + x * cos_angle + y * sin_angle
+        new_y = origin[1] + -x * sin_angle + y * cos_angle
+
+        # Update position coordinates.
+        self.state[0] = new_x
+        self.state[1] = new_y
+
+        # Update angle.
+        self.state[2] = np.mod(self.state[2] + angle, 2 * np.pi)
 
 
 class Edge:
@@ -16,6 +50,22 @@ class Edge:
         self.relative_pose = relative_pose
         self.rotation = rotation
         self.information_matrix = information_matrix
+
+
+class Graph:
+
+    def __init__(self, vertices, edges):
+
+        self.vertices = vertices
+        self.edges = edges
+
+    def get_vertices(self):
+
+        return self.vertices
+
+    def get_edges(self):
+
+        return self.edges
 
 
 class MultiGraph:
