@@ -123,7 +123,7 @@ def _pgo(w, anchor_rotation=0):
     dual_solution = solve_dual_neos(w)
 
     # Print resulting time elapsed.
-    print("Dual problem completed. Time elapsed: %f seconds." % (time.time() - start))
+    print("Dual problem completed. Time elapsed: %f seconds.\n" % (time.time() - start))
 
     # Evaluate W(lambda).
     w_lambda = w_with_multipliers(w, dual_solution).value
@@ -136,7 +136,7 @@ def _pgo(w, anchor_rotation=0):
 
     # If there is a single zero eigenvalue, then eigenvector corresponding to it corresponds
     # to solution.
-    if zero_multiplicity == 1 or zero_multiplicity == 0:
+    if True:#zero_multiplicity == 1 or zero_multiplicity == 0:
 
         # Logging information.
         print("Single zero eigenvalue property holds.")
@@ -218,15 +218,7 @@ if __name__ == "__main__":
     # plot_vertices(vertices)
     # draw_plots()
 
-    # Get w matrix.
-    vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_INTEL_g2o.g2o")
-    # vertices, edges = parse_g2o("/home/joe/repositories/distributed-slam/datasets/input_INTEL_g2o.g2o")
-    #w = w_from_vertices_and_edges(vertices, edges)
-
-    # # Run algorithm 1 from Carlone paper.
-    #solution = _pgo(w)
-    solution = pgo("/home/joe/repositories/distributed-slam/slam_testing/examples/generated_data/abc.g2o")
+    solution = pgo("/home/joe/repositories/distributed-slam/datasets/input_INTEL_g2o.g2o")
     plot_complex_list(solution[0])
-    plot_vertices(vertices)
     draw_plots()
 

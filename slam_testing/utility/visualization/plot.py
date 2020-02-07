@@ -23,7 +23,10 @@ def plot_complex_list(data, xlim=None, ylim=None):
 
     # Plot these pairs of coordinates.
     plt.figure()
-    plt.plot(x, y, 'bo-')
+    ax = plt.axes()
+    ax.set_xticks([])
+    ax.set_yticks([])
+    plt.plot(x, y, 'bo-', markersize=1)
 
     # Set plotting axes.
     _set_axes(x, y, xlim, ylim)
@@ -37,7 +40,7 @@ def plot_vertices(vertices, xlim=None, ylim=None):
 
     # Plot these pairs of coordinates.
     plt.figure()
-    plt.plot(x, y, 'bo-')
+    plt.plot(x, y, 'bo-', markersize=1)
 
     # Set plotting axes.
     _set_axes(x, y, xlim, ylim)
