@@ -172,13 +172,13 @@ def _pgo(w, anchor_rotation=0):
 
     # Split solution into positions and rotations.
     positions = np.vstack([0, solution[:len(solution)//2]])
-    rotations = np.vstack([anchor_rotation, solution[len(solution)//2:]])
+    rotations = np.vstack([anchor_rotation, solution[len(solution)//2 + 1:]])
 
     # Return solution along with optimality certificate.
     return positions, rotations, dual_solution
 
 
-def pgo(x, y=None, anchor_rotation=None):
+def pgo(x, y=None, anchor_rotation=0):
     """
     Wrapper for main pgo function. Can take file name or W matrix directly.
 
