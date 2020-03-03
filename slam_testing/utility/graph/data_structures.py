@@ -45,6 +45,7 @@ class Vertex:
 class Edge:
 
     def __init__(self, out_vertex, in_vertex, relative_pose, rotation, information_matrix):
+
         self.out_vertex = out_vertex
         self.in_vertex = in_vertex
         self.relative_pose = relative_pose
@@ -66,6 +67,15 @@ class Graph:
     def get_edges(self):
 
         return self.edges
+
+    def neighborhood(self, i):
+
+        # Find edges that contain i.
+        edges = [e for e in self.edges if e.out_vertex == i or e.in_vertex == i]
+        vertices = list(set([e.in_vertex for e in self.edges] + [e.out_vertex for e in self.edges]))
+
+        # Return the graph composed of the neighborhood of vertex i.
+        return Graph(vertices, edges)
 
 
 class MultiGraph:

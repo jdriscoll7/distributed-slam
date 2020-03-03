@@ -7,9 +7,9 @@ from utility.graph import *
 
 def parse_g2o(path, groups=False):
     """
-    :param path: Path to g2o file.
+    :param path:   Path to g2o file.
     :param groups: True if vertices are expected to have group tags.
-    :return:     List of vertices and list of edges.
+    :return:       List of vertices and list of edges.
     """
 
     # Initialize return lists.
