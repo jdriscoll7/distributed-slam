@@ -1,10 +1,11 @@
 import numpy as np
 import cvxpy as cp
+import scipy as sc
 
-from solvers.sdp import w_from_g2o
+from solvers.sdp import w_from_g2o, pgo
 from utility.graph import Graph
 from utility.parsing import parse_g2o
-from utility.visualization import plot_complex_list
+from utility.visualization import plot_complex_list, plot_vertices, draw_plots
 from solvers.sdp.matrix_creation import complex_reduce_matrix
 
 
@@ -47,19 +48,24 @@ def vector_to_complex(vector):
     return vector[0] + 1j*vector[1]
 
 
-def form_quadratic(graph):
+def form_quadratic(fixed_vertex, graph):
 
     # Precompute all offset and rotation matrices.
     rotation_matrices = [rotation_matrix(e.rotation) for e in graph.edges]
     offset_matrices = [offset_matrix(e.relative_pose) for e in graph.edges]
 
-    a = np.vstack(tuple([np.block([[np.eye(2), x],
-                                   [np.zeros((2, 2)), rotation_matrices[i]]])
-                         for i, x in enumerate(offset_matrices)]))
+    # Form upper and lower half (corresponding to positions and rotations) separately, then combine.
+    a_upper = np.vstack(tuple([np.block([np.eye(2), x]) for x in offset_matrices]))
+    a_lower = np.vstack(tuple([np.block([np.zeros((2, 2)), x]) for x in rotation_matrices]))
+    a = np.vstack((a_upper, a_lower))
 
-    b = np.vstack(tuple([np.block([[vector_to_complex(e.relative_pose)],
-                                   [np.exp(1j*e.rotation)]])
-                         for e in graph.edges]))
+    # The "b" vector is just the current estimate, but only the indices corresponding to current neighborhood.
+    b = np.zeros((2*len(graph.vertices) - 2, 1), dtype=complex)
+
+    for i in range(len(graph.vertices)):
+        if graph.vertices[i] is not fixed_vertex:
+            b[i] = graph.vertices[i].get_complex_position()
+            b[i + b.shape[0]//2 - 1] = graph.vertices[i].get_complex_rotation()
 
     return complex_reduce_matrix(a), b
 
@@ -73,54 +79,85 @@ def create_sdp_data_matrix(a, b):
     :return:  data matrix for sdp relaxation
     """
 
-    cross_term = a.T @ b
+    cross_term = np.conjugate(a.T) @ b
 
-    return np.block([[a.T @ a, cross_term],
-                     [cross_term.T, b.T @ b]])
+    return np.block([[np.conjugate(a.T) @ a, cross_term],
+                     [np.conjugate(cross_term.T), np.conjugate(b.T) @ b]])
 
 
-def solve_local_sdp(vertex, state, graph):
+def rank_one_approximation(X):
+
+    # Return scaled, principle eigenvector of input matrix.
+    w, v = sc.linalg.eigh(X, eigvals=(X.shape[0] - 1, X.shape[0] - 1))
+
+    return np.sqrt(w) * v
+
+
+def solve_local_sdp(vertex, graph):
 
     # Get neighborhood of vertex.
     neighborhood = graph.neighborhood(vertex)
 
     # Form quadratic data matrices.
-    a, b = form_quadratic(neighborhood)
+    a, b = form_quadratic(vertex, neighborhood)
 
     # Form sdp relaxation data matrix.
     C = create_sdp_data_matrix(a, b)
 
     # Optimization variable.
-    X = cp.Variable(complex=True, shape=(3, 3))
+    X = cp.Variable(hermitian=True, shape=(3, 3))
 
     # Setup SDP.
-    constraints = [X >> 0, X[1, 1] == 1]
+    constraints = [X >> 0, X[1, 1] == 1, X[2, 2] == 1]
     problem = cp.Problem(cp.Minimize(cp.abs(cp.trace(C @ X))), constraints)
 
     # Solve sdp.
-    problem.solve(verbose=True)
+    problem.solve(verbose=False)
 
-    # Setup some constant matrices with ones on lower diagonal.
-    a_22 = np.array([[0, 0, 0], [0, 1, 0], [0, 0, 0]])
-    a_33 = np.array([[0, 0, 0], [0, 0, 0], [0, 0, 1]])
+    # Extract matrix solution from problem.
+    problem_solution = list(problem.solution.primal_vars.values())
 
-    # Get eigenvector corresponding to lowest eigenvalue.
-    solution = np.linalg.eig(C - a_22*constraints[1].dual_value - a_33*constraints[2].dual_value)[1][:, -1]
+    # If the problem is infeasible, then make no changes.
+    solution = None
 
-    # Scale rotation in solution and remove last entry.
-    solution[1] = solution[1] / np.abs(solution[1])
-    solution = solution[:2]
+    if len(problem_solution) > 0:
 
-    return solution
+        # Compute rank one approximation.
+        solution = rank_one_approximation(problem_solution[0])
+        solution = -solution / solution[2]
+        solution = [solution.item(0), solution.item(1)]
+
+    else:
+
+        solution = [graph.vertices[vertex].position, graph.vertices[vertex].rotation]
+
+    return solution[0], solution[1]
 
 
 if __name__ == "__main__":
 
+    # Carlone SDP solution.
+    vertices, edges = parse_g2o("../../../datasets/input_MITb_g2o.g2o")
+    positions, rotations, _ = pgo(vertices, edges)
+
+    for i, v in enumerate(vertices):
+        v.set_state(positions[i], rotations[i])
+
     # Generate pose graph matrix.
-    graph = Graph(*parse_g2o("../../../datasets/input_MITb_g2o.g2o"))
+    graph = Graph(vertices, edges)
 
     rng = np.random.SFC64()
 
-    for _ in range(1, 5000):
-        i = rng.random_raw() % (len(graph.vertices) - 1)
-        p, r = solve_local_sdp(i, [], graph)
+    plot_vertices(graph.vertices)
+
+    for _ in range(1, 500):
+        i = rng.random_raw() % (100)
+        position, rotation = solve_local_sdp(i, graph)
+
+        # Update graph with solution.
+        graph.set_state(i, position, rotation)
+
+        print(i)
+
+    plot_vertices(graph.vertices)
+    draw_plots()
