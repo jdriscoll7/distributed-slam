@@ -35,8 +35,8 @@ def plot_complex_list(data, xlim=None, ylim=None):
 def plot_vertices(vertices, xlim=None, ylim=None):
 
     # Extract x coordinates of each vertex.
-    x = [v.state[0] for v in vertices]
-    y = [v.state[1] for v in vertices]
+    x = [v.position[0] for v in vertices]
+    y = [v.position[1] for v in vertices]
 
     # Plot these pairs of coordinates.
     plt.figure()

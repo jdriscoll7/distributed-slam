@@ -28,7 +28,8 @@ def parse_g2o(path, groups=False):
 
             # Extract ID and state (position) vector.
             vertex_id = int(line_tokens[1])
-            vertex_state = np.array([float(i) for i in line_tokens[2:5]]).T
+            vertex_position = np.array([float(i) for i in line_tokens[2:4]]).T
+            vertex_rotation = float(line_tokens[4])
 
             # Update return list with information just extracted (force state into column vector).
             if groups:
@@ -41,10 +42,10 @@ def parse_g2o(path, groups=False):
                     vertices += [[] for i in range(len(vertices) - group_id + 1)]
 
                 # Append vertex to list according to its group.
-                vertices[group_id].append(Vertex(vertex_id, vertex_state))
+                vertices[group_id].append(Vertex(vertex_id, vertex_position, vertex_rotation))
 
             else:
-                vertices.append(Vertex(vertex_id, vertex_state))
+                vertices.append(Vertex(vertex_id, vertex_position, vertex_rotation))
 
         else:
 

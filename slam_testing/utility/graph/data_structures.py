@@ -3,9 +3,10 @@ import numpy as np
 
 class Vertex:
 
-    def __init__(self, id, state):
+    def __init__(self, id, position, rotation):
         self.id = id
-        self.state = state
+        self.position = position
+        self.rotation = rotation
 
     def set_state(self, position, rotation):
 
@@ -13,12 +14,20 @@ class Vertex:
         if isinstance(rotation, complex):
             rotation = np.angle(rotation)
 
-        self.state[0] = np.real(position)
-        self.state[1] = np.imag(position)
-        self.state[2] = rotation
+        if isinstance(position, complex):
+            position = np.array([[np.real(position)], [np.imag(position)]])
+
+        self.position = position
+        self.rotation = rotation
 
     def get_connected_edges(self, edges, vertices):
         return get_connected_edges(self.id, edges, vertices)
+
+    def get_complex_position(self):
+        return self.position[0] + 1j*self.position[1]
+
+    def get_complex_rotation(self):
+        return np.exp(1j*self.rotation)
 
     def rotate(self, angle, origin=(0, 0)):
 
@@ -26,20 +35,20 @@ class Vertex:
         cos_angle = np.cos(angle)
         sin_angle = np.sin(angle)
 
-        # Store x and y coordinate of state for brevity.
-        x = self.state[0] - origin[0]
-        y = self.state[1] - origin[1]
+        # Store x and y coordinate of position for brevity.
+        x = self.position[0] - origin[0]
+        y = self.position[1] - origin[1]
 
         # Compute new position coordinates.
         new_x = origin[0] + x * cos_angle + y * sin_angle
         new_y = origin[1] + -x * sin_angle + y * cos_angle
 
         # Update position coordinates.
-        self.state[0] = new_x
-        self.state[1] = new_y
+        self.position[0] = new_x
+        self.position[1] = new_y
 
         # Update angle.
-        self.state[2] = np.mod(self.state[2] + angle, 2 * np.pi)
+        self.rotation = np.mod(self.rotation + angle, 2 * np.pi)
 
 
 class Edge:
@@ -68,11 +77,26 @@ class Graph:
 
         return self.edges
 
+    def set_state(self, vertex_id, position, rotation):
+
+        # Set depending on the type of position (complex number or vector).
+        if isinstance(position, complex):
+            position = np.array([[np.real(position)], [np.imag(position)]])
+
+        # Set depending on the type of rotation (complex number or float (radians)).
+        if isinstance(rotation, complex):
+            rotation = np.angle(rotation)
+
+        self.vertices[vertex_id].set_state(position, rotation)
+
     def neighborhood(self, i):
 
         # Find edges that contain i.
         edges = [e for e in self.edges if e.out_vertex == i or e.in_vertex == i]
-        vertices = list(set([e.in_vertex for e in self.edges] + [e.out_vertex for e in self.edges]))
+
+        # Find vertices covered by edges.
+        vertex_ids = list(set([e.in_vertex for e in edges] + [e.out_vertex for e in edges]))
+        vertices = [v for v in self.vertices if v.id in vertex_ids]
 
         # Return the graph composed of the neighborhood of vertex i.
         return Graph(vertices, edges)
