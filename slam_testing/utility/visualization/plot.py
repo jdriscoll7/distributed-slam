@@ -11,6 +11,13 @@ def _set_axes(x, y, xlim=None, ylim=None):
     if ylim is None:
         ylim = [1.1 ** (-1 * np.sign(np.min(y))) * np.min(y), 1.1 ** (np.sign(np.max(y))) * np.max(y)]
 
+    # Make sure axes are not being made smaller than before.
+    xmin, xmax, ymin, ymax = plt.axis()
+    ylim[0] = ymin if ylim[0] > ymin else ylim[0]
+    ylim[1] = ymax if ylim[1] < ymax else ylim[1]
+    xlim[0] = xmin if xlim[0] > xmin else xlim[0]
+    xlim[1] = xmax if xlim[1] < xmax else xlim[1]
+
     plt.ylim(bottom=ylim[0], top=ylim[1])
     plt.xlim(left=xlim[0], right=xlim[1])
 
@@ -32,15 +39,37 @@ def plot_complex_list(data, xlim=None, ylim=None):
     _set_axes(x, y, xlim, ylim)
 
 
-def plot_vertices(vertices, xlim=None, ylim=None):
+def plot_vertices(vertices, xlim=None, ylim=None, new_figure=True, color=None, edges=None):
 
     # Extract x coordinates of each vertex.
     x = [v.position[0] for v in vertices]
     y = [v.position[1] for v in vertices]
 
+    if new_figure is True:
+        plt.figure()
+
+    # Choose color.
+    if color is None:
+        color = np.random.rand(3, )
+
     # Plot these pairs of coordinates.
-    plt.figure()
-    plt.plot(x, y, 'bo-', markersize=1)
+    plt.plot(x, y, 'bo-', markersize=1, c=color)
+
+    # Plot relative measurements if edges are included.
+    if edges is not None:
+        for e in edges:
+
+            # Current x and y positions and their offsets from relative measurements.
+            index = np.argwhere([e.out_vertex == v.id for v in vertices])[0][0]
+            base_x = x[index]
+            base_y = y[index]
+
+            offset_x = e.relative_pose[0]
+            offset_y = e.relative_pose[1]
+
+            plt.plot([base_x, base_x + offset_x],
+                     [base_y, base_y + offset_y],
+                     '-->')
 
     # Set plotting axes.
     _set_axes(x, y, xlim, ylim)

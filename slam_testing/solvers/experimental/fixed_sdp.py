@@ -48,6 +48,11 @@ def vector_to_complex(vector):
     return vector[0] + 1j*vector[1]
 
 
+def rotation_to_complex(angle):
+
+    return np.exp(1j*angle)
+
+
 def form_quadratic(fixed_vertex, graph):
 
     # Vertex id's in edge-order.
@@ -58,24 +63,44 @@ def form_quadratic(fixed_vertex, graph):
     in_rotation_matrices = [rotation_matrix(e.rotation) for e in graph.edges if e.in_vertex == fixed_vertex]
     out_rotation_matrices = [rotation_matrix(e.rotation) for e in graph.edges if e.out_vertex == fixed_vertex]
 
+    in_rotations = [np.exp(1j*v.rotation)
+                    for v in graph.vertices if v.id in out_neighborhood]
+
     in_offset_matrices = [offset_matrix(e.relative_pose) for e in graph.edges if e.in_vertex == fixed_vertex]
     out_offset_matrices = [offset_matrix(e.relative_pose) for e in graph.edges if e.out_vertex == fixed_vertex]
 
     # Form upper and lower half (corresponding to positions and rotations) separately, then combine.
-    a_upper = np.vstack(tuple([np.block([[-np.eye(2), -x],
-                                         [np.zeros((2, 2)), -out_rotation_matrices[i]]])
-                               for i, x in enumerate(in_offset_matrices)]))
+    a_upper = []
 
-    a_lower = np.vstack(tuple([np.eye(4) for _ in out_offset_matrices]))
+    for i, x in enumerate(out_offset_matrices):
+
+        a_upper.append(np.block([[-np.eye(2), -x],
+                                  [np.zeros((2, 2)), -out_rotation_matrices[i]]]))
+
+    # Stack list of matrices vertically.
+    a_upper = np.vstack(tuple(a_upper))
+
+    # Lower part of A is just 4x4 identities, stacked a number of times equal to number of incoming edges.
+    a_lower = np.vstack(tuple([np.eye(4) for _ in in_offset_matrices]))
     a = np.vstack((a_upper, a_lower))
 
     # Form constant vector in quadratic.
-    b_upper = np.vstack(tuple([np.vstack((vector_to_complex(v.position), v.rotation))
-                               for v in graph.vertices if v.id in out_neighborhood]))
+    b_upper = []
 
-    b_lower = -np.vstack(tuple([complex_reduce_matrix(np.vstack((x, in_rotation_matrices[i]))) * vector_to_complex(rotation_vector(in_neighborhood[i]))
-                                for i, x in enumerate(in_offset_matrices)]))
+    for v in graph.vertices:
+        if v.id in in_neighborhood:
+            b_upper.append(np.vstack((vector_to_complex(v.position), rotation_to_complex(v.rotation))))
 
+    b_upper = np.vstack(tuple(b_upper))
+
+    # Form lower part of quadratic constant.
+    b_lower = []
+
+    for i, x in enumerate(in_offset_matrices):
+        b_lower.append(-complex_reduce_matrix(np.vstack((x, in_rotation_matrices[i]))) * in_rotations[i])
+
+    # Combine list of lower matrices into lower matrix, as well as combine upper and lower parts.
+    b_lower = np.vstack(tuple(b_lower))
     b = np.vstack((b_upper, b_lower))
 
     return complex_reduce_matrix(a), b
@@ -135,7 +160,7 @@ def solve_local_sdp(vertex, graph):
 
         # Compute rank one approximation.
         solution = rank_one_approximation(problem_solution[0])
-        solution = -solution / solution[2]
+        solution = 2 * solution / solution[2]
         solution = [solution.item(0), solution.item(1)]
 
     else:
@@ -143,32 +168,3 @@ def solve_local_sdp(vertex, graph):
         solution = [graph.vertices[vertex].position, graph.vertices[vertex].rotation]
 
     return solution[0], solution[1]
-
-
-if __name__ == "__main__":
-
-    # Carlone SDP solution.
-    vertices, edges = parse_g2o("../../../datasets/input_MITb_g2o.g2o")
-    # positions, rotations, _ = pgo(vertices, edges)
-    #
-    # for i, v in enumerate(vertices):
-    #     v.set_state(positions[i], rotations[i])
-
-    # Generate pose graph matrix.
-    graph = Graph(vertices, edges)
-
-    rng = np.random.SFC64()
-
-    plot_vertices(graph.vertices)
-
-    for _ in range(1, 500):
-        i = rng.random_raw() % (100)
-        position, rotation = solve_local_sdp(i, graph)
-
-        # Update graph with solution.
-        graph.set_state(i, position, rotation)
-
-        print(i)
-
-    plot_vertices(graph.vertices)
-    draw_plots()
