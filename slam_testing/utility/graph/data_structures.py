@@ -77,11 +77,18 @@ class Graph:
 
         return self.edges
 
+    def get_vertex(self, id):
+
+        for v in self.vertices:
+            if v.id == id:
+                return v
+
+
     def set_state(self, vertex_id, position, rotation):
 
         # Set depending on the type of position (complex number or vector).
         if isinstance(position, complex):
-            position = np.array([[np.real(position)], [np.imag(position)]])
+            position = np.array([[np.real(position)], [np.imag(position)]]).reshape(-1,)
 
         # Set depending on the type of rotation (complex number or float (radians)).
         if isinstance(rotation, complex):

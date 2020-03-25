@@ -17,8 +17,8 @@ def offset_matrix(relative_pose):
     :return:                2x2 array representing offset matrix
     """
 
-    return -np.array([[relative_pose[0], -relative_pose[1]],
-                      [relative_pose[1], relative_pose[0]]])
+    return np.array([[relative_pose[0], -relative_pose[1]],
+                     [relative_pose[1], relative_pose[0]]])
 
 
 def rotation_matrix(theta):
@@ -48,6 +48,11 @@ def vector_to_complex(vector):
     return vector[0] + 1j*vector[1]
 
 
+def complex_to_vector(x):
+
+    return np.vstack((np.real(x), np.imag(x)))
+
+
 def rotation_to_complex(angle):
 
     return np.exp(1j*angle)
@@ -75,14 +80,18 @@ def form_quadratic(fixed_vertex, graph):
     for i, x in enumerate(out_offset_matrices):
 
         a_upper.append(np.block([[-np.eye(2), -x],
-                                  [np.zeros((2, 2)), -out_rotation_matrices[i]]]))
+                                 [np.zeros((2, 2)), -out_rotation_matrices[i]]]))
 
     # Stack list of matrices vertically.
     a_upper = np.vstack(tuple(a_upper))
 
     # Lower part of A is just 4x4 identities, stacked a number of times equal to number of incoming edges.
-    a_lower = np.vstack(tuple([np.eye(4) for _ in in_offset_matrices]))
-    a = np.vstack((a_upper, a_lower))
+    if len(in_offset_matrices) > 0:
+        a_lower = np.vstack(tuple([np.eye(4) for _ in in_offset_matrices]))
+        a = np.vstack((a_upper, a_lower))
+    else:
+        a = a_upper
+
 
     # Form constant vector in quadratic.
     b_upper = []
@@ -97,11 +106,18 @@ def form_quadratic(fixed_vertex, graph):
     b_lower = []
 
     for i, x in enumerate(in_offset_matrices):
-        b_lower.append(-complex_reduce_matrix(np.vstack((x, in_rotation_matrices[i]))) * in_rotations[i])
+
+        b_i = np.vstack((vector_to_complex(x @ complex_to_vector(in_rotations[i]) + graph.get_vertex(out_neighborhood[i]).position.reshape(2, 1)),
+                         vector_to_complex(in_rotation_matrices[i] @ complex_to_vector(in_rotations[i]))))
+
+        b_lower.append(-b_i)
 
     # Combine list of lower matrices into lower matrix, as well as combine upper and lower parts.
-    b_lower = np.vstack(tuple(b_lower))
-    b = np.vstack((b_upper, b_lower))
+    if len(b_lower) > 0:
+        b_lower = np.vstack(tuple(b_lower))
+        b = np.vstack((b_upper, b_lower))
+    else:
+        b = b_upper
 
     return complex_reduce_matrix(a), b
 
@@ -126,10 +142,10 @@ def rank_one_approximation(X):
     # Return scaled, principle eigenvector of input matrix.
     w, v = sc.linalg.eigh(X, eigvals=(X.shape[0] - 1, X.shape[0] - 1))
 
-    return np.sqrt(w) * v
+    return w * v @ np.conjugate(v.T)
 
 
-def solve_local_sdp(vertex, graph):
+def solve_local_sdp(vertex, graph, verbose=False):
 
     # Get neighborhood of vertex.
     neighborhood = graph.neighborhood(vertex)
@@ -148,7 +164,7 @@ def solve_local_sdp(vertex, graph):
     problem = cp.Problem(cp.Minimize(cp.abs(cp.trace(C @ X))), constraints)
 
     # Solve sdp.
-    problem.solve(verbose=False)
+    problem.solve(verbose=verbose, max_iters=1000000)
 
     # Extract matrix solution from problem.
     problem_solution = list(problem.solution.primal_vars.values())
@@ -160,11 +176,11 @@ def solve_local_sdp(vertex, graph):
 
         # Compute rank one approximation.
         solution = rank_one_approximation(problem_solution[0])
-        solution = 2 * solution / solution[2]
+        solution = solution[:, 2]
         solution = [solution.item(0), solution.item(1)]
 
     else:
 
         solution = [graph.vertices[vertex].position, graph.vertices[vertex].rotation]
 
-    return solution[0], solution[1]
+    return solution[0], solution[1] / np.abs(solution[1])

@@ -6,10 +6,10 @@ import numpy as np
 def _set_axes(x, y, xlim=None, ylim=None):
 
     if xlim is None:
-        xlim = [1.1 ** (-1 * np.sign(np.min(x))) * np.min(x), 1.1 ** (np.sign(np.max(x))) * np.max(x)]
+        xlim = [-1 + 1.1 ** (-1 * np.sign(np.min(x))) * np.min(x), 1 + 1.1 ** (np.sign(np.max(x))) * np.max(x)]
 
     if ylim is None:
-        ylim = [1.1 ** (-1 * np.sign(np.min(y))) * np.min(y), 1.1 ** (np.sign(np.max(y))) * np.max(y)]
+        ylim = [-1 + 1.1 ** (-1 * np.sign(np.min(y))) * np.min(y), 1 + 1.1 ** (np.sign(np.max(y))) * np.max(y)]
 
     # Make sure axes are not being made smaller than before.
     xmin, xmax, ymin, ymax = plt.axis()
@@ -39,37 +39,54 @@ def plot_complex_list(data, xlim=None, ylim=None):
     _set_axes(x, y, xlim, ylim)
 
 
-def plot_vertices(vertices, xlim=None, ylim=None, new_figure=True, color=None, edges=None):
+def plot_vertices(vertices, xlim=None, ylim=None, new_figure=True, color=None, edges=[], rotations=[], labels=False):
 
     # Extract x coordinates of each vertex.
     x = [v.position[0] for v in vertices]
     y = [v.position[1] for v in vertices]
 
+    # Make new figure and get current axes.
+    ax = None
     if new_figure is True:
         plt.figure()
+
+    ax = plt.gca()
 
     # Choose color.
     if color is None:
         color = np.random.rand(3, )
 
     # Plot these pairs of coordinates.
-    plt.plot(x, y, 'bo-', markersize=1, c=color)
+    ax.plot(x, y, 'bo-', markersize=4, c=color)
+
+    # Annotate plot with vertex numbers.
+    if labels:
+        for v in vertices:
+            ax.annotate('%d' % v.id, xy=tuple(v.position), textcoords='data')
+
+    # Plot rotations.
+    for i, xy in enumerate(zip(x, y)):
+        rotation = vertices[i].rotation
+        ax.arrow(xy[0], xy[1], np.cos(rotation), np.sin(rotation), head_width=.05)
 
     # Plot relative measurements if edges are included.
-    if edges is not None:
-        for e in edges:
+    for e in edges:
 
-            # Current x and y positions and their offsets from relative measurements.
-            index = np.argwhere([e.out_vertex == v.id for v in vertices])[0][0]
-            base_x = x[index]
-            base_y = y[index]
+        # Current x and y positions and their offsets from relative measurements.
+        index = np.argwhere([e.out_vertex == v.id for v in vertices])[0][0]
+        base_x = x[index]
+        base_y = y[index]
 
-            offset_x = e.relative_pose[0]
-            offset_y = e.relative_pose[1]
+        offset_x = e.relative_pose[0]
+        offset_y = e.relative_pose[1]
 
-            plt.plot([base_x, base_x + offset_x],
-                     [base_y, base_y + offset_y],
-                     '-->')
+        ax.plot([base_x, base_x + offset_x],
+                [base_y, base_y + offset_y],
+                '--')
+
+        ax.annotate('(%s, %s)' % (e.out_vertex, e.in_vertex),
+                    xy=(base_x + offset_x / 2, base_y + offset_y / 2),
+                    textcoords='data')
 
     # Set plotting axes.
     _set_axes(x, y, xlim, ylim)

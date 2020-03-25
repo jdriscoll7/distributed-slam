@@ -1,33 +1,44 @@
 import numpy as np
 
-from solvers.experimental.fixed_sdp import solve_local_sdp, rotation_vector, vector_to_complex
+from solvers.experimental.fixed_sdp import solve_local_sdp, rotation_matrix, rotation_vector, vector_to_complex, offset_matrix
 from utility.graph import Graph
 from utility.parsing import parse_g2o
 from utility.visualization import plot_vertices, draw_plots
 
 
-def averaging(vertex, graph):
+def cost_function(graph):
 
-    vertex_mapping = dict([(v.id, i) for i, v in enumerate(graph.vertices)])
+    sum = 0
 
-    in_edges = [e for e in graph.edges if e.in_vertex == vertex]
-    out_edges = [e for e in graph.edges if e.out_vertex == vertex]
+    for e in graph.edges:
 
-    in_relative_poses = [graph.vertices[vertex_mapping[e.in_vertex]].position.reshape(-1, 1)
-                       + e.relative_pose.reshape(-1, 1)
-                         for e in in_edges]
+        in_vertex = graph.get_vertex(e.in_vertex)
+        out_vertex = graph.get_vertex(e.out_vertex)
 
-    out_relative_poses = [graph.vertices[vertex_mapping[e.out_vertex]].position.reshape(-1, 1)
-                        + e.relative_pose.reshape(-1, 1)
-                         for e in out_edges]
+        # Difference of in and out vertex positions.
+        difference = (in_vertex.position - out_vertex.position).reshape(-1, 1)
 
-    in_rotations = [e.rotation for e in in_edges]
-    out_rotations = [-e.rotation for e in out_edges]
+        # First term in sum.
+        first_term = difference - offset_matrix(e.relative_pose) @ rotation_vector(out_vertex.rotation)
 
-    position = np.mean(in_relative_poses + out_relative_poses, axis=0)
-    rotation = np.mean(in_rotations + out_rotations)
+        # Second term in sum.
+        second_term = rotation_vector(in_vertex.rotation) - rotation_matrix(e.rotation) @ rotation_vector(out_vertex.rotation)
 
-    return position, rotation
+        sum += first_term.T @ first_term + second_term.T @ second_term
+
+    return sum
+
+
+def max_cost(graph):
+
+    max_cost = 0
+
+    for v in graph.vertices:
+        cost = cost_function(graph.neighborhood(v.id))
+        if cost > max_cost:
+            max_cost = cost
+
+    return max_cost
 
 
 if __name__ == "__main__":
@@ -46,27 +57,41 @@ if __name__ == "__main__":
 
     plot_vertices(graph.vertices)
 
-    for _ in range(1, len(vertices) - 1):
+    i = 0
+    changes = 0
+    max_costs = []
 
-        i = rng.random_raw() % (len(vertices) - 1)
+    while changes < 1000:
 
-        old_position = graph.vertices[i].position
-        old_rotation = vector_to_complex(rotation_vector(graph.vertices[i].rotation))
+        #i = rng.random_raw() % (500)
 
-        #position, rotation = solve_local_sdp(i, graph)
-        position, rotation = averaging(i, graph)
+        i = (i + 1) % 500
+
+        pre_cost = cost_function(graph.neighborhood(i))
+
+        if pre_cost < 1:
+            continue
+
+        old_position = vector_to_complex(graph.vertices[i].position)
+        old_rotation = vector_to_complex(rotation_vector(graph.vertices[i].rotation))[0]
+
+        changes += 1
+        print("update: \t\t\t%d \ni: \t\t\t\t\t%d" % (changes, i))
+
+        position, rotation = solve_local_sdp(i, graph, verbose=False)
 
         # Plot original neighborhood.
-        #plot_vertices(graph.neighborhood(i).vertices, color='b', edges=graph.neighborhood(i).edges)
+        #plot_vertices(graph.neighborhood(i).vertices, color='b', edges=graph.neighborhood(i).edges, labels=True)
 
         # Update graph with solution.
         graph.set_state(i, position, rotation)
 
+        print("Old cost: \t\t\t%f\nNew cost: \t\t\t%f\nPercent change: \t%f" % (pre_cost, cost_function(graph.neighborhood(i)), (pre_cost - cost_function(graph.neighborhood(i))) / pre_cost))
+
         # Plot updated neighborhood.
-        #plot_vertices(graph.neighborhood(i).vertices, new_figure=True, color='r', edges=graph.neighborhood(i).edges)
+        #plot_vertices(graph.neighborhood(i).vertices, new_figure=True, color='r', edges=graph.neighborhood(i).edges, labels=True)
+        print("\n")
 
-        print(i)
 
-
-    plot_vertices(graph.vertices)
+    plot_vertices(graph.vertices, labels=True)
     draw_plots()
