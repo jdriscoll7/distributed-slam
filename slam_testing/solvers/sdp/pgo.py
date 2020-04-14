@@ -39,11 +39,37 @@ def w_with_multipliers(w, multipliers):
     return cp.Constant(w) - d
 
 
+def solve_primal_program(w):
+    """
+    Solves (36) in the Carlone paper.
+
+    :param w:           SDP data matrix
+    :return:            lambda (solution to dual problem)
+    """
+
+    # Number of vertices in problem instance.
+    n = (w.shape[0] + 1) // 2
+
+    # Declare Lagrange multipliers as variable to solve dual.
+    X = cp.Variable(hermitian=True, shape=(2*n - 1, 2*n - 1))
+
+    # Add positive semi-definiteness constraint.
+    constraints = [X >> 0] + [X[i, i] == 1 for i in range(n - 1, 2*n - 1)]
+
+    # Form and solve problem.
+    problem = cp.Problem(cp.Minimize(cp.abs(cp.trace(w @ X))), constraints)
+    problem.solve(verbose=True)
+
+    print(problem.value)
+
+    return X.value
+
+
 def solve_dual_program(w):
     """
     Solves (31) in the Carlone paper.
 
-    :param w:           W matrix used in constraints
+    :param w:           SDP data matrix
     :return:            lambda (solution to dual problem)
     """
 

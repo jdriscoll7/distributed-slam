@@ -10,7 +10,7 @@ def rotation_matrix_2d(theta):
     :return:        2x2 rotation matrix represented by angle
     """
 
-    return np.matrix([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+    return np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
 
 
 def create_d_matrix(edges, n_vertices):
@@ -23,7 +23,7 @@ def create_d_matrix(edges, n_vertices):
 
     # D matrix is composed of smaller, 2x2 sub-matrices. Form large matrix of zeros,
     # then create and place these submatrices in proper location.
-    d = np.asmatrix(np.zeros((2*len(edges), 2*n_vertices)))
+    d = np.array(np.zeros((2*len(edges), 2*n_vertices)))
 
     for i in range(0, 2 * len(edges), 2):
 
@@ -34,8 +34,8 @@ def create_d_matrix(edges, n_vertices):
         relative_pose = edge.relative_pose.flatten()
 
         # Compute current 2x2 submatrix (D_{ij} in Carlone paper).
-        submatrix = -np.matrix([[relative_pose[0], -relative_pose[1]],
-                                [relative_pose[1], relative_pose[0]]])
+        submatrix = -np.array([[relative_pose[0], -relative_pose[1]],
+                               [relative_pose[1], relative_pose[0]]])
 
         # Set the block matrix at block row i, block column vertex_out to submatrix.
         d[i:(i + 2), 2*edge.out_vertex:(2*edge.out_vertex + 2)] = submatrix
@@ -52,7 +52,7 @@ def create_u_matrix(edges, n_vertices):
     """
 
     # Similar to construction of d matrix - just more submatrices to emplace.
-    u = np.asmatrix(np.zeros((2*len(edges), 2*n_vertices)))
+    u = np.array(np.zeros((2*len(edges), 2*n_vertices)))
 
     for i in range(0, 2 * len(edges), 2):
 
@@ -79,7 +79,7 @@ def edges_to_anchored_incidence(edges, n_vertices):
     """
 
     # Pre-allocate incidence matrix with all zeros.
-    a = np.asmatrix(np.zeros((len(edges), n_vertices)))
+    a = np.array(np.zeros((len(edges), n_vertices)))
 
     # Set entries of incidence matrix.
     for i in range(len(edges)):
@@ -137,10 +137,10 @@ def complex_reduce_matrix(a):
         for j in range(0, n - 1, 2):
             output[i // 2, j // 2] = matrix_to_complex(a[i:i+2, j:j+2])
 
-    return np.asmatrix(output)
+    return np.array(output)
 
 
-def create_w_matrix(a, d, u):
+def create_w_matrix(a, d, u, factored=False):
     """
     Creates the large W matrix used in the main algorithm in Carlone PGO paper (in eq (26)).
 
@@ -161,15 +161,13 @@ def create_w_matrix(a, d, u):
     reduced_u = complex_reduce_matrix(u)
     reduced_d = complex_reduce_matrix(d)
 
-    # Compute entries of W block-wise.
-    w_11 = a.T * a
-    w_12 = a.T * reduced_d
-    w_21 = w_12.H
-    w_22 = (reduced_u.H * reduced_u) + (reduced_d.H * reduced_d)
+    X = np.block([[a, reduced_d],
+                  [np.zeros((a.shape[1], reduced_u.shape[0])), reduced_u]])
 
-    return np.block([[w_11, w_12],
-                     [w_21, w_22]])
+    if not factored:
+        X = np.conjugate(X).T @ X
 
+    return X
 
 def w_from_g2o(path):
     """
@@ -186,7 +184,12 @@ def w_from_g2o(path):
     return w_from_vertices_and_edges(vertices, edges)
 
 
-def w_from_vertices_and_edges(vertices, edges):
+def w_from_graph(graph, factored=False):
+
+    return w_from_vertices_and_edges(graph.vertices, graph.edges, factored)
+
+
+def w_from_vertices_and_edges(vertices, edges, factored=False):
     """
     Creates the W matrix fromused in Carlone paper from list of vertices and edges.
 
@@ -201,7 +204,7 @@ def w_from_vertices_and_edges(vertices, edges):
     u = create_u_matrix(edges, len(vertices))
 
     # Create and return w matrix.
-    return create_w_matrix(a, d, u)
+    return create_w_matrix(a, d, u, factored)
 
 
 if __name__ == "__main__":

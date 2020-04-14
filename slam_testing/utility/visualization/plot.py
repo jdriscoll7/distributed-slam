@@ -57,7 +57,7 @@ def plot_vertices(vertices, xlim=None, ylim=None, new_figure=True, color=None, e
         color = np.random.rand(3, )
 
     # Plot these pairs of coordinates.
-    ax.plot(x, y, 'bo-', markersize=4, c=color)
+    ax.scatter(x, y, marker='o', s=4, c=color)
 
     # Annotate plot with vertex numbers.
     if labels:

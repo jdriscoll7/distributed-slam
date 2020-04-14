@@ -83,12 +83,15 @@ def form_quadratic(fixed_vertex, graph):
                                  [np.zeros((2, 2)), -out_rotation_matrices[i]]]))
 
     # Stack list of matrices vertically.
-    a_upper = np.vstack(tuple(a_upper))
+    a_upper = np.vstack(tuple(a_upper)) if len(a_upper) > 0 else []
 
     # Lower part of A is just 4x4 identities, stacked a number of times equal to number of incoming edges.
     if len(in_offset_matrices) > 0:
         a_lower = np.vstack(tuple([np.eye(4) for _ in in_offset_matrices]))
-        a = np.vstack((a_upper, a_lower))
+        if len(a_upper) > 0:
+            a = np.vstack((a_upper, a_lower))
+        else:
+            a = a_lower
     else:
         a = a_upper
 
@@ -100,7 +103,7 @@ def form_quadratic(fixed_vertex, graph):
         if v.id in in_neighborhood:
             b_upper.append(np.vstack((vector_to_complex(v.position), rotation_to_complex(v.rotation))))
 
-    b_upper = np.vstack(tuple(b_upper))
+    b_upper = np.vstack(tuple(b_upper)) if len(b_upper) > 0 else []
 
     # Form lower part of quadratic constant.
     b_lower = []
@@ -115,7 +118,10 @@ def form_quadratic(fixed_vertex, graph):
     # Combine list of lower matrices into lower matrix, as well as combine upper and lower parts.
     if len(b_lower) > 0:
         b_lower = np.vstack(tuple(b_lower))
-        b = np.vstack((b_upper, b_lower))
+        if len(b_upper) > 0:
+            b = np.vstack((b_upper, b_lower))
+        else:
+            b = b_lower
     else:
         b = b_upper
 

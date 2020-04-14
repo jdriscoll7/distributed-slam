@@ -1,4 +1,5 @@
 import numpy as np
+import copy
 
 
 class Vertex:
@@ -17,8 +18,11 @@ class Vertex:
         if isinstance(position, complex):
             position = np.array([[np.real(position)], [np.imag(position)]])
 
-        self.position = position
-        self.rotation = rotation
+        if position is not None:
+            self.position = position
+
+        if rotation is not None:
+            self.rotation = rotation
 
     def get_connected_edges(self, edges, vertices):
         return get_connected_edges(self.id, edges, vertices)
@@ -66,8 +70,8 @@ class Graph:
 
     def __init__(self, vertices, edges):
 
-        self.vertices = vertices
-        self.edges = edges
+        self.vertices = copy.copy(vertices)
+        self.edges = copy.copy(edges)
 
     def get_vertices(self):
 
@@ -83,7 +87,6 @@ class Graph:
             if v.id == id:
                 return v
 
-
     def set_state(self, vertex_id, position, rotation):
 
         # Set depending on the type of position (complex number or vector).
@@ -94,19 +97,69 @@ class Graph:
         if isinstance(rotation, complex):
             rotation = np.angle(rotation)
 
-        self.vertices[vertex_id].set_state(position, rotation)
+        self.get_vertex(vertex_id).set_state(position, rotation)
 
-    def neighborhood(self, i):
+    def update_states(self, vertex_ids, state):
+
+        for i in range(state.shape[0] // 2):
+            self.set_state(vertex_ids[i], position=state[i, 0], rotation=state[i + state.shape[0] // 2, 0])
+
+    def get_complex_state(self, centered=False):
+
+        x = np.zeros((2*len(self.vertices), 1), dtype=np.complex)
+
+        for i, v in enumerate(self.vertices):
+            x[i] = v.position[0] + 1j*v.position[1]
+            x[i + len(self.vertices)] = np.exp(1j*v.rotation)
+
+        if centered:
+            x[:len(self.vertices)] = x[:len(self.vertices)] - x[0]
+            x = x[1:]
+
+        return x
+
+    def neighborhood(self, i, reduce=False):
 
         # Find edges that contain i.
-        edges = [e for e in self.edges if e.out_vertex == i or e.in_vertex == i]
+        edges = [copy.copy(e) for e in self.edges if e.out_vertex == i or e.in_vertex == i]
 
         # Find vertices covered by edges.
         vertex_ids = list(set([e.in_vertex for e in edges] + [e.out_vertex for e in edges]))
-        vertices = [v for v in self.vertices if v.id in vertex_ids]
+        vertices = [copy.copy(v) for v in self.vertices if v.id in vertex_ids]
 
-        # Return the graph composed of the neighborhood of vertex i.
-        return Graph(vertices, edges)
+        if reduce:
+            # Store vertex ids in sorted order and reduct vertex ids.
+            vertex_ids = [v.id for v in vertices]
+            vertex_ids.sort()
+            vertices, edges = reduce_ids(vertices, edges)
+            return Graph(vertices, edges), vertex_ids
+
+        else:
+            return Graph(vertices, edges)
+
+
+def reduce_ids(vertices, edges):
+
+    # Copy vertices and edges.
+    reduced_v = copy.copy(vertices)
+    reduced_e = copy.copy(edges)
+
+    # Maintain a counter for new vertex ids.
+    vertex_counter = 0
+
+    # For each vertex id, reduce all edges containing id and then reduce id of vertex.
+    for v_index, v in enumerate(vertices):
+        for edge_index, e in enumerate(edges):
+            if e.in_vertex == v.id:
+                reduced_e[edge_index].in_vertex = vertex_counter
+            elif e.out_vertex == v.id:
+                reduced_e[edge_index].out_vertex = vertex_counter
+
+        # Update id of vertex and increment count.
+        reduced_v[v_index].id = vertex_counter
+        vertex_counter += 1
+
+    return reduced_v, reduced_e
 
 
 class MultiGraph:
