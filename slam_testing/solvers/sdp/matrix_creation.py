@@ -69,10 +69,11 @@ def create_u_matrix(edges, n_vertices):
     return u
 
 
-def edges_to_anchored_incidence(edges, n_vertices):
+def edges_to_incidence(edges, n_vertices, anchored=True):
     """
     Converts a list of edges into the anchored incidence matrix used in Carlone W matrix.
 
+    :param anchored:    true if one vertex should be treated as anchored vertex
     :param n_vertices:  number of vertices (determines number of columns)
     :param edges:       list of edges, each of which contains in/out-vertex information
     :return:            anchored incidence matrix for these edges
@@ -92,7 +93,10 @@ def edges_to_anchored_incidence(edges, n_vertices):
         a[i, edge.out_vertex] = -1
 
     # Anchor the matrix (i.e. remove first column).
-    return a[:, 1:]
+    if anchored:
+        a = a[:, 1:]
+
+    return a
 
 
 def matrix_to_complex(a):
@@ -162,7 +166,7 @@ def create_w_matrix(a, d, u, factored=False):
     reduced_d = complex_reduce_matrix(d)
 
     X = np.block([[a, reduced_d],
-                  [np.zeros((a.shape[1], reduced_u.shape[0])), reduced_u]])
+                  [np.zeros((reduced_u.shape[0], a.shape[1])), reduced_u]])
 
     if not factored:
         X = np.conjugate(X).T @ X
@@ -184,12 +188,12 @@ def w_from_g2o(path):
     return w_from_vertices_and_edges(vertices, edges)
 
 
-def w_from_graph(graph, factored=False):
+def w_from_graph(graph, factored=False, anchored=True):
 
-    return w_from_vertices_and_edges(graph.vertices, graph.edges, factored)
+    return w_from_vertices_and_edges(graph.vertices, graph.edges, factored, anchored)
 
 
-def w_from_vertices_and_edges(vertices, edges, factored=False):
+def w_from_vertices_and_edges(vertices, edges, factored=False, anchored=True):
     """
     Creates the W matrix fromused in Carlone paper from list of vertices and edges.
 
@@ -199,7 +203,7 @@ def w_from_vertices_and_edges(vertices, edges, factored=False):
     """
 
     # Create the three inputs needed to create W matrix.
-    a = edges_to_anchored_incidence(edges, len(vertices))
+    a = edges_to_incidence(edges, len(vertices), anchored)
     d = create_d_matrix(edges, len(vertices))
     u = create_u_matrix(edges, len(vertices))
 

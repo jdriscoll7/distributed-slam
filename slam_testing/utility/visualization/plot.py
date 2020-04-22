@@ -39,7 +39,18 @@ def plot_complex_list(data, xlim=None, ylim=None):
     _set_axes(x, y, xlim, ylim)
 
 
-def plot_vertices(vertices, xlim=None, ylim=None, new_figure=True, color=None, edges=[], rotations=[], labels=False):
+def plot_graphs(graphs, new_figure=False):
+
+    for g in graphs:
+        plot_graph(graph=g, new_figure=new_figure)
+
+
+def plot_graph(graph, new_figure=False):
+
+    plot_vertices(graph.vertices, new_figure=new_figure, edges=graph.edges, labels=True)
+
+
+def plot_vertices(vertices, xlim=None, ylim=None, new_figure=True, color=None, edges=[], labels=False):
 
     # Extract x coordinates of each vertex.
     x = [v.position[0] for v in vertices]
