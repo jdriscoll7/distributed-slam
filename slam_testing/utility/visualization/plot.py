@@ -103,14 +103,20 @@ def plot_vertices(vertices, xlim=None, ylim=None, new_figure=True, color=None, e
     _set_axes(x, y, xlim, ylim)
 
 
-def plot_pose_graph(vertices, edges, xlim=None, ylim=None):
+def plot_pose_graph(vertices=None, edges=None, xlim=None, ylim=None, graph=None, new_figure=True, ax=None):
+
+    # Optional graph argument to specify vertices and edges.
+    if graph is not None:
+        vertices = graph.vertices
+        edges = graph.edges
 
     # Extract x coordinates of each vertex.
-    x = [v.state[0] for v in vertices]
-    y = [v.state[1] for v in vertices]
+    x = [v.position[0] for v in vertices]
+    y = [v.position[1] for v in vertices]
 
     # Plot these pairs of coordinates.
-    plt.figure()
+    if new_figure:
+        plt.figure()
 
     # Need to repeatedly search vertex ids of "vertices" list.
     vertex_ids = [v.id for v in vertices]
@@ -122,14 +128,22 @@ def plot_pose_graph(vertices, edges, xlim=None, ylim=None):
         in_vertex = vertex_ids.index(edge.in_vertex)
         out_vertex = vertex_ids.index(edge.out_vertex)
 
+        # If plot needs to be done on a certain axis, then do ax.plot rather than plt.plot.
+        if ax is None:
+            ax = plt
+
         # Plot this edge - change color if it is in spanning tree.
         if edge.out_vertex == edge.in_vertex - 1:
-            plt.plot([x[out_vertex], x[in_vertex]], [y[out_vertex], y[in_vertex]], 'ro-')
+            # line, = ax.plot([x[out_vertex], x[in_vertex]], [y[out_vertex], y[in_vertex]], 'ro-', zorder=100)
+            line, = ax.plot([x[out_vertex], x[in_vertex]], [y[out_vertex], y[in_vertex]], 'ko-', zorder=100, markersize=16)
         else:
-            plt.plot([x[out_vertex], x[in_vertex]], [y[out_vertex], y[in_vertex]], 'ko-')
+            line, = ax.plot([x[out_vertex], x[in_vertex]], [y[out_vertex], y[in_vertex]], 'ko-', markersize=16)
 
     # Set plotting axes.
-    _set_axes(x, y, xlim, ylim)
+    if new_figure:
+        _set_axes(x, y, xlim, ylim)
+
+    return line
 
 
 def draw_plots():

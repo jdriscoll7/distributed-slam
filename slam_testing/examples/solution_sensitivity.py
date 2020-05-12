@@ -6,8 +6,12 @@ import matplotlib.animation as animation
 from solvers.sdp import pgo
 from utility.data_generation import serial_graph_plan
 from utility.data_generation import create_random_dataset
+from utility.graph import Graph
 from utility.visualization import plot_complex_list, draw_plots, plot_pose_graph
 from utility.parsing import parse_g2o
+import matplotlib.gridspec as gridspec
+
+from solvers.experimental.local_admm import cost_function
 
 
 def _create_distance_matrix(data, solution):
@@ -25,32 +29,44 @@ def _create_distance_matrix(data, solution):
 def create_gif(update, data, data_length, name):
 
     plt.figure()
-    fig, ax = plt.subplots()
+    fig, ax = plt.subplots(1, 1)
+    fig.subplots_adjust(top=1.0,
+                        bottom=0.0,
+                        left=0.0,
+                        right=1.0,
+                        hspace=0.0,
+                        wspace=0.0)
+
+    for location in ["left", "right", "top", "bottom"]:
+        ax.spines[location].set_visible(False)
 
     ani = animation.FuncAnimation(fig, update, data_length, fargs=[data, ax], interval=1000, blit=True)
 
     # Setup mp4 writing.
     writer = animation.writers['ffmpeg']
-    writer = writer(fps=1, metadata=dict(artist='Me'), bitrate=1800)
+    writer = writer(fps=0.5, metadata=dict(artist='Me'), bitrate=1800)
+
+    # Write the mp4.
     ani.save(name, writer=writer)
 
 
-def create_trajectory_gif(data, solution):
+def create_trajectory_gif(data, solution, graph_history, rotation_history=None):
 
     solution = [[np.real(x) for x in solution], [np.imag(x) for x in solution]]
 
     def update(n, data, ax):
 
-        left = 1.1 * (np.min(solution[0]) if np.min(solution[0]) < 0 else -np.min(solution[0]))
-        right = 1.1 * (-np.max(solution[0]) if np.max(solution[0]) < 0 else np.max(solution[0]))
-        bottom = 1.1 * (np.min(solution[1]) if np.min(solution[1]) < 0 else -np.min(solution[1]))
-        top = 1.1 * (-np.max(solution[1]) if np.max(solution[1]) < 0 else np.max(solution[1]))
+        # Set plotting limits.,
+        left = (np.min(solution[0]) if np.min(solution[0]) < 0 else -np.min(solution[0])) - 0.5
+        right = (-np.max(solution[0]) if np.max(solution[0]) < 0 else np.max(solution[0])) + 0.5
+        bottom = (np.min(solution[1]) if np.min(solution[1]) < 0 else -np.min(solution[1])) - 0.5
+        top = (-np.max(solution[1]) if np.max(solution[1]) < 0 else np.max(solution[1])) + 0.5
 
         for a in (ax if isinstance(ax, tuple) else [ax]):
             a.clear()
             a.set_xlim(left=left, right=right)
             a.set_ylim(bottom=bottom, top=top)
-            a.set_aspect('equal')
+            #a.set_aspect('equal')
             a.set_xticks([])
             a.set_yticks([])
 
@@ -58,10 +74,20 @@ def create_trajectory_gif(data, solution):
         x = [np.real(d) for d in data[n]]
         y = [np.imag(d) for d in data[n]]
 
-        line_1, = ax.plot(x, y, 'bo-', markersize=2, linewidth=1, zorder=2)
-        line_2, = ax.plot(solution[0], solution[1], 'ro-', linewidth=2, markersize=4, zorder=1)
+        # Update vertex states before plotting.
+        for i, x in enumerate(x):
+            graph_history[n].set_state(i, position=x.item() + 1j*y[i].item(), rotation=rotation_history[n][i].item())
 
-        return line_1, line_2
+        cost_function(graph_history[n])
+
+        # line_1, = ax.plot(x, y, 'bo-', markersize=2, linewidth=1, zorder=2)
+        # line_2, = ax.plot(solution[0], solution[1], 'ro-', linewidth=2, markersize=4, zorder=1)
+        line = plot_pose_graph(vertices=graph_history[n].vertices, edges=graph_history[n].edges, new_figure=False, ax=ax)
+
+        # Save individual frames.
+        plt.savefig('%d.png' % (n))
+
+        return line,
 
     create_gif(update, data, len(data), 'trajectory.mp4')
 
@@ -142,7 +168,7 @@ def plot_vertex_distances(data, solution):
 if __name__ == "__main__":
 
     # Path for generated file.
-    FILE_PATH = "/home/joe/repositories/distributed-slam/datasets/input_INTEL_g2o.g2o"
+    FILE_PATH = "/home/joe/repositories/distributed-slam/datasets/custom_problem.g2o"
 
     # Number of vertices in generated data and starting point for test.
     # N_VERTICES = 10
@@ -164,13 +190,34 @@ if __name__ == "__main__":
 
     solutions = []
 
-    plan_sizes = range(10, len(vertex_list))
-    plan_sizes = list(plan_sizes)[::50]
+    # plan_sizes = range(10, len(vertex_list))
+    # plan_sizes = list(plan_sizes)[::50]
+    plan_sizes = list(range(7))
+
+    # Keep track of vertices and edges used.
+    graph_history = []
+    rotation_solutions = []
 
     for (vertices, edges) in serial_graph_plan(vertex_list, edge_list, list(plan_sizes)):
-        solutions.append(pgo(vertices, edges)[0])
 
-    create_trajectory_gif(solutions, solutions[-1])
+        # Add to list of solutions.
+        positions, rotations = pgo(vertices, edges)[0:2]
+
+        solutions.append(positions)
+        rotation_solutions.append(rotations)
+
+        # Add to list of vertices and edges used.
+        graph_history.append(Graph(vertices, edges))
+
+    create_trajectory_gif(solutions, solutions[-1], graph_history, rotation_solutions)
+
+    # Extract coordinates for each vertex.
+    x = [np.real(d) for d in solutions[-1]]
+    y = [np.imag(d) for d in solutions[-1]]
+    for i in range(len(solutions)):
+        solutions[i] = solutions[-1][:len(solutions[i])]
+
+    create_trajectory_gif(solutions, solutions[-1], graph_history, rotation_solutions)
     create_distance_gif(solutions, solutions[-1])
 
     plot_vertex_trajectory(solutions, solutions[-1])
