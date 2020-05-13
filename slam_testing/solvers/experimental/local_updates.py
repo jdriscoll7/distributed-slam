@@ -90,13 +90,23 @@ class LocalOptimizer:
 
     def sdp_solve(self, load=False):
 
+        # Copy original graph.
+        self.sdp_solution = copy.copy(self.graph)
+
         # Load precomputed solution to save time on multiple runs.
         if load:
-            self.sdp_solution = np.load("pgo_solution.npy", allow_pickle=True)
+
+            # Set states in solution graph.
+            self.sdp_solution.update_states([i for i in range(len(self.graph.vertices))],
+                                            np.load("pgo_solution.npy", allow_pickle=True))
 
         else:
+            # Find solution.
             positions, rotations, _ = pgo(self.vertices, self.edges)
-            self.sdp_solution = np.vstack([positions, rotations])
+
+            # Set states in solution graph.
+            self.sdp_solution.update_states([i for i in range(len(self.graph.vertices))],
+                                            np.vstack([positions, rotations]))
 
             # Save solution for future use.
             np.save("pgo_solution.npy", self.sdp_solution)
