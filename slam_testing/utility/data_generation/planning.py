@@ -1,4 +1,4 @@
-def serial_graph_plan(vertices, edges, included_vertices):
+def serial_graph_plan(vertices, edges, included_vertices=None):
     """
     Creates a plan for adding vertices one-by-one, adding in edges corresponding to added vertex. Function
     is meant to be used as a generator function.
@@ -8,6 +8,9 @@ def serial_graph_plan(vertices, edges, included_vertices):
     :param included_vertices: List of numbers indicating the sizes at which the plan covers.
     :return:                  Generates vertex and edge lists at each step of the vertex addition.
     """
+
+    # If included_vertices is not supplied, then do all possible sizes.
+    included_vertices = [i for i in range(2, len(vertices) + 1)]
 
     # Begin with first vertex.
     current_vertices = [vertices[0]]

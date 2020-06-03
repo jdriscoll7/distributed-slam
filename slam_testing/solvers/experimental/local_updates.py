@@ -17,12 +17,15 @@ from solvers.sdp.pgo import solve_primal_program
 
 class LocalOptimizer:
 
-    def __init__(self, pgo_file=None, vertices=None, edges=None):
+    def __init__(self, pgo_file=None, vertices=None, edges=None, graph=None):
+
+        if graph is not None:
+            vertices = graph.vertices
+            edges = graph.edges
 
         # Load in vertices and edges from input arguments.
         if pgo_file is not None:
-            vertices, edges = parse_g2o(pgo_file)
-            self.graph = Graph(vertices, edges)
+            self.vertices, self.edges = parse_g2o(pgo_file)
 
         elif vertices is not None and edges is not None:
             self.vertices = vertices
@@ -30,6 +33,8 @@ class LocalOptimizer:
 
         else:
             raise Exception("PGO file path or list of vertices and edges must be provided.")
+
+        self.graph = Graph(self.vertices, self.edges)
 
         # Find and store anchored pose graph matrix.
         #self.w = w_from_vertices_and_edges(self.graph.vertices, self.graph.edges)
