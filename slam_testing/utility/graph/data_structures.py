@@ -65,6 +65,13 @@ class Edge:
         self.rotation = rotation
         self.information_matrix = information_matrix
 
+    def __eq__(self, other):
+
+        if self.in_vertex == other.in_vertex and self.out_vertex == other.out_vertex:
+            return True
+        else:
+            return False
+
 
 class Graph:
 
@@ -136,6 +143,33 @@ class Graph:
 
         else:
             return Graph(vertices, edges)
+
+    def remove_edges(self, edge_list):
+
+        for edge in edge_list:
+            self.edges.remove(edge)
+
+    def tree_partition(self):
+
+        sub_trees = []
+
+        for i in range(len(self.vertices)):
+
+            # Need an un-reduced and a reduced neighborhood.
+            unreduced_neighborhood = self.neighborhood(i, reduce=False)
+            neighborhood, id_list = self.neighborhood(i, reduce=True)
+
+            if len(neighborhood.vertices) > 0:
+                sub_trees.append((neighborhood, id_list))
+
+            # Remove edges from previous tree.
+            self.remove_edges(unreduced_neighborhood.edges)
+
+            # Early termination if there are no more edges.
+            if len(self.edges) == 0:
+                break
+
+        return sub_trees
 
 
 def reduce_ids(vertices, edges):

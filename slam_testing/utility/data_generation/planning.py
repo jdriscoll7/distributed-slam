@@ -10,7 +10,8 @@ def serial_graph_plan(vertices, edges, included_vertices=None):
     """
 
     # If included_vertices is not supplied, then do all possible sizes.
-    included_vertices = [i for i in range(2, len(vertices) + 1)]
+    if included_vertices is None:
+        included_vertices = [i for i in range(1, len(vertices) + 1)]
 
     # Begin with first vertex.
     current_vertices = [vertices[0]]

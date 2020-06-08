@@ -25,7 +25,7 @@ class LocalADMM(LocalOptimizer):
 
         # Make variables (slack, local, dual) initialized to original graph.
         self.slack = np.zeros(shape=(len(2*self.graph.vertices), 2*len(self.graph.vertices)), dtype=np.complex)
-        self.local_graphs = [self.graph.neighborhood(i, reduce=True) for i in range(len(self.graph.vertices))]
+        self.local_graphs = self.graph.tree_partition()
         self.local_variables = [g[0].get_complex_state() @ np.conj(g[0].get_complex_state().T)
                                 for g in self.local_graphs]
 
@@ -52,9 +52,12 @@ class LocalADMM(LocalOptimizer):
 
     def update_local_estimates(self, rho=1):
 
-        pool = Pool(processes=min(8, len(self.vertices)))
-        # results = pool.starmap(self.local_solve, [(i, rho) for i in range(len(self.graph.vertices))])
-        results = pool.starmap(self.local_solve_pgd, [(i, rho) for i in range(len(self.graph.vertices))])
+        # Pool of at most 8 processes - otherwise number of vertices if smaller.
+        pool = Pool(processes=min(8, len(self.local_variables)))
+
+        results = pool.starmap(self.local_solve_pgd, [(i, rho) for i in range(len(self.local_graphs))])
+
+        # Close out all processes spawned by pool/starmap.
         pool.terminate()
 
         # Obtain and set results.
@@ -127,7 +130,7 @@ class LocalADMM(LocalOptimizer):
             X = pgo_projection(X - alpha * (np.conj(w.T) + rho * np.conj((X - Z + U).T)))
 
             # Early termination condition.
-            if np.linalg.norm(X - previous_X, ord='fro') < tol:
+            if (1 / np.linalg.norm(X, ord='fro')) * np.linalg.norm(X - previous_X, ord='fro') < tol:
                 break
 
         # Add anchored pose if anchor vertex contained in neighborhood.
@@ -195,7 +198,7 @@ class LocalADMM(LocalOptimizer):
             self.update_slack()
             self.update_dual_estimates()
             self.update_local_estimates(rho=rho)
-            print("Iteration: %d" % i)
+            # print("Iteration: %d" % i)
 
     def get_slack_submatrix(self, i):
 
@@ -235,6 +238,25 @@ class LocalADMM(LocalOptimizer):
 
     def synchronize_angles(self, results):
 
+        local_graphs = [(copy.copy(x), copy.copy(y)) for x, y in copy.copy(self.local_graphs)]
+
+        for v in self.vertices:
+
+            containing_graphs = [g for g in local_graphs if v.id in g[1]]
+
+            if len(containing_graphs) > 0:
+                local_index = local_graphs.index(containing_graphs[0])
+                vertex_index = containing_graphs[0][1].index(v.id)
+                reference_angle = np.angle(results[local_index][vertex_index])
+
+            for i, g in enumerate(containing_graphs):
+                local_index = local_graphs.index(g)
+                vertex_index = g[1].index(v.id)
+                results[local_index][vertex_index] = np.abs(results[local_index][vertex_index]) * np.exp(1j*reference_angle)
+
+        return results
+
+
         # Keep track of changed results.
         change_list = []
 
@@ -262,7 +284,7 @@ class LocalADMM(LocalOptimizer):
 
     def current_estimate(self):
 
-        graph = Graph(self.graph.vertices, self.graph.edges)
+        graph = Graph(self.vertices, self.edges)
         solution = evaluate_local_solutions(self)
         graph.update_states([i for i in range(len(graph.vertices))], solution)
 
@@ -310,6 +332,14 @@ class LocalADMM(LocalOptimizer):
 
         # Reset "global" slack variable to zero matrix with one additional column and row than before.
         self.slack = np.zeros(shape=(self.slack.shape[0] + 1, self.slack.shape[1] + 1), dtype=np.complex)
+
+    def join_problem(self):
+
+        # This should only be used when all local problems are identical - remove all identical parts.
+        self.w = [self.w[0]]
+        self.local_variables = [self.local_variables[0]]
+        self.local_graphs = [self.local_graphs[0]]
+        self.dual = [self.dual[0]]
 
 
 def pgo_projection(X):
@@ -400,7 +430,7 @@ def evaluate_local_solutions(admm_optimizer):
     for i, x in enumerate(admm_optimizer.local_variables):
         rank_one_approximations.append(rank_one_approximation(x))
 
-    rank_one_approximations = admm_optimizer.synchronize_signs(results=rank_one_approximations)
+    # rank_one_approximations = admm_optimizer.synchronize_signs(results=rank_one_approximations)
     rank_one_approximations = admm_optimizer.synchronize_angles(results=rank_one_approximations)
 
     for i, x in enumerate(admm_optimizer.local_variables):
