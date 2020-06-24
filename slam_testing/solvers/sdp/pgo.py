@@ -203,14 +203,18 @@ def _pgo(w):
     return positions, rotations, dual_solution
 
 
-def pgo(x, y=None):
+def pgo(x=None, y=None, graph=None):
     """
     Wrapper for main pgo function. Can take file name or W matrix directly.
 
-    :param x:   Either W matrix, file name, or vertices.
-    :param y:   Either None or edges.
-    :return:    Solution to PGO problem found with SDP.
+    :param x:     Either W matrix, file name, or vertices.
+    :param y:     Either None or edges.
+    :param graph: Optionally specify problem with graph object.
+    :return:      Solution to PGO problem found with SDP.
     """
+
+    if graph is not None:
+        return _pgo(w_from_vertices_and_edges(graph.vertices, graph.edges))
 
     # If y is not empty, then arguments are vertices and edges.
     if y is not None:
