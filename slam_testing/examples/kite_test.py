@@ -79,7 +79,6 @@ def kite(n, d, ladder_length=3, position_sigma=0, rotation_sigma=0):
                           rotation=relative_rotation + rotation_sigma * np.random.randn(),
                           information_matrix=None))
 
-
     return kite_no_handle, Graph(vertices, edges)
 
 
