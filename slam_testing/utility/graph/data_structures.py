@@ -9,6 +9,9 @@ class Vertex:
         self.position = position
         self.rotation = rotation
 
+    def __eq__(self, other):
+        return True if other.id == self.id else False
+
     def set_state(self, position, rotation):
 
         # Force correct type for rotation.
