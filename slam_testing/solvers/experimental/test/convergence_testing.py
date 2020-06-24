@@ -64,10 +64,10 @@ def print_eigenvector_history(local_variables):
 
     np.set_printoptions(linewidth=np.inf)
     for i in range(len(local_variables)):
-        print("History for local variable %d: \n" % (i))
+        print("Eigenvectors for local variable %d: \n" % (i))
         for x in local_variables[i:]:
             eigenvectors = np.linalg.eigh(x[i])[1]
-            print(eigenvectors[:, eigenvectors.shape[1] - 1])
+            print(eigenvectors)
             print("\n")
         print("\n\n")
 
@@ -121,3 +121,4 @@ if __name__ == "__main__":
         print("Graph of size %d - Cost: %f" % (i + 3, cost_function(admm_optimizer.current_estimate())))
 
     print_local_variables(local_variables)
+    print_eigenvector_history(local_variables)
