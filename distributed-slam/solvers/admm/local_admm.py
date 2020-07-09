@@ -77,8 +77,6 @@ class LocalADMM(LocalOptimizer):
 
         # Convert global and dual states into rank one matrices.
         U = cp.Constant(self.dual[i])
-        #z = self.global_estimate.neighborhood(i, reduce=True)[0].get_complex_state(centered=True)
-        # U = cp.Constant(u @ np.conjugate(u.T))
 
         # Slack variable for star-neighborhood of vertex i.
         Z = self.get_slack_submatrix(i)
@@ -88,7 +86,7 @@ class LocalADMM(LocalOptimizer):
 
         # Define function f to be minimized.
         f = cp.abs(cp.trace(w @ X)) + (rho / 2 * cp.norm(X - Z + U, "fro") ** 2)
-        # f = cp.abs(cp.trace(w @ X)) + (rho / 2 * cp.norm(X - Z, "fro") ** 2)
+
         # Form and solve problem.
         problem = cp.Problem(cp.Minimize(f), constraints)
         problem.solve(verbose=False, max_iters=100000)
@@ -255,7 +253,6 @@ class LocalADMM(LocalOptimizer):
                 results[local_index][vertex_index] = np.abs(results[local_index][vertex_index]) * np.exp(1j*reference_angle)
 
         return results
-
 
         # Keep track of changed results.
         change_list = []
@@ -430,7 +427,6 @@ def evaluate_local_solutions(admm_optimizer):
     for i, x in enumerate(admm_optimizer.local_variables):
         rank_one_approximations.append(rank_one_approximation(x))
 
-    # rank_one_approximations = admm_optimizer.synchronize_signs(results=rank_one_approximations)
     rank_one_approximations = admm_optimizer.synchronize_angles(results=rank_one_approximations)
 
     for i, x in enumerate(admm_optimizer.local_variables):
@@ -443,7 +439,6 @@ def evaluate_local_solutions(admm_optimizer):
 
     mod_composite_solution = np.copy(composite_solution)
     for i, x in enumerate(opinion_list):
-        # mod_composite_solution[i] = x[0]
         mod_composite_solution[i] = x[0]
 
     return mod_composite_solution
