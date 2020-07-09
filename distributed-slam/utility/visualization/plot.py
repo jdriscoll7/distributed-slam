@@ -135,9 +135,11 @@ def plot_pose_graph(vertices=None, edges=None, xlim=None, ylim=None, graph=None,
         # Plot this edge - change color if it is in spanning tree.
         if edge.out_vertex == edge.in_vertex - 1:
             # line, = ax.plot([x[out_vertex], x[in_vertex]], [y[out_vertex], y[in_vertex]], 'ro-', zorder=100)
-            line, = ax.plot([x[out_vertex], x[in_vertex]], [y[out_vertex], y[in_vertex]], 'ko-', zorder=100, markersize=16)
+            # line, = ax.plot([x[out_vertex], x[in_vertex]], [y[out_vertex], y[in_vertex]], 'ko-', zorder=100, markersize=16)
+            line, = ax.plot([x[out_vertex], x[in_vertex]], [y[out_vertex], y[in_vertex]], 'ko-', zorder=100, markersize=3)
         else:
-            line, = ax.plot([x[out_vertex], x[in_vertex]], [y[out_vertex], y[in_vertex]], 'ko-', markersize=16)
+            # line, = ax.plot([x[out_vertex], x[in_vertex]], [y[out_vertex], y[in_vertex]], 'ko-', markersize=16)
+            line, = ax.plot([x[out_vertex], x[in_vertex]], [y[out_vertex], y[in_vertex]], 'ko-', markersize=3)
 
     # Set plotting axes.
     if new_figure:

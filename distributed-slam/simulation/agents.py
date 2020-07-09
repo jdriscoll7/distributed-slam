@@ -126,7 +126,7 @@ class Agent:
 
 if __name__ == "__main__":
 
-    agent = Agent("/home/joe/repositories/distributed-slam/slam_testing/utility/data_generation/test/dataset.g2o")
+    agent = Agent("/home/joe/repositories/distributed-slam/distributed-slam/utility/data_generation/test/dataset.g2o")
     #agent = Agent("/home/joe/repositories/distributed-slam/datasets/input_INTEL_g2o.g2o")
     agent.plot_current_estimate()
     agent.run_pgo()

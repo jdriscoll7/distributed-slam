@@ -1,6 +1,10 @@
+import copy
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from os import makedirs
+from os.path import dirname
 
 
 from solvers.sdp import pgo
@@ -52,15 +56,37 @@ def create_gif(update, data, data_length, name):
 
 def create_trajectory_gif(data, solution, graph_history, rotation_history=None):
 
+    # Make sure output directory exists - if not, create it.
+    if dirname('trajectory_files/trajectory.mp4') is not '':
+        makedirs(dirname('trajectory_files/trajectory.mp4'), exist_ok=True)
+
     solution = [[np.real(x) for x in solution], [np.imag(x) for x in solution]]
 
-    def update(n, data, ax):
+    # Find plotting bounds to nicely fit frames.
+    left = 0
+    right = 0
+    bottom = 0
+    top = 0
 
-        # Set plotting limits.,
-        left = (np.min(solution[0]) if np.min(solution[0]) < 0 else -np.min(solution[0])) - 0.5
-        right = (-np.max(solution[0]) if np.max(solution[0]) < 0 else np.max(solution[0])) + 0.5
-        bottom = (np.min(solution[1]) if np.min(solution[1]) < 0 else -np.min(solution[1])) - 0.5
-        top = (-np.max(solution[1]) if np.max(solution[1]) < 0 else np.max(solution[1])) + 0.5
+    for graph in graph_history:
+        # Extract maximal coordinates.
+        x_min = np.min(np.real(graph.get_complex_state()))
+        x_max = np.max(np.real(graph.get_complex_state()))
+        y_min = np.min(np.imag(graph.get_complex_state()))
+        y_max = np.max(np.imag(graph.get_complex_state()))
+
+        # Keep track of minimal/maximal coordinates.
+        left = left if left < x_min else x_min
+        right = right if right > x_max else x_max
+        bottom = bottom if bottom < y_min else y_min
+        top = top if top > y_max else y_max
+
+    left = left - 0.1 * np.abs(left) - 1
+    right = right + 0.1 * np.abs(right) + 1
+    top = top + 0.1 * np.abs(top) + 1
+    bottom = bottom - 0.1 * np.abs(bottom) - 1
+
+    def update(n, data, ax):
 
         for a in (ax if isinstance(ax, tuple) else [ax]):
             a.clear()
@@ -74,10 +100,6 @@ def create_trajectory_gif(data, solution, graph_history, rotation_history=None):
         x = [np.real(d) for d in data[n]]
         y = [np.imag(d) for d in data[n]]
 
-        # Update vertex states before plotting.
-        for i, x in enumerate(x):
-            graph_history[n].set_state(i, position=x.item() + 1j*y[i].item(), rotation=rotation_history[n][i].item())
-
         cost_function(graph_history[n])
 
         # line_1, = ax.plot(x, y, 'bo-', markersize=2, linewidth=1, zorder=2)
@@ -85,11 +107,11 @@ def create_trajectory_gif(data, solution, graph_history, rotation_history=None):
         line = plot_pose_graph(vertices=graph_history[n].vertices, edges=graph_history[n].edges, new_figure=False, ax=ax)
 
         # Save individual frames.
-        plt.savefig('%d.png' % (n))
+        plt.savefig('trajectory_files/%d.png' % (n))
 
         return line,
 
-    create_gif(update, data, len(data), 'trajectory.mp4')
+    create_gif(update, data, len(data), 'trajectory_files/trajectory.mp4')
 
 
 def create_distance_gif(data, solution):
@@ -168,7 +190,7 @@ def plot_vertex_distances(data, solution):
 if __name__ == "__main__":
 
     # Path for generated file.
-    FILE_PATH = "/home/joe/repositories/distributed-slam/datasets/custom_problem.g2o"
+    FILE_PATH = "/home/joe/repositories/distributed-slam/datasets/input_INTEL_g2o.g2o"
 
     # Number of vertices in generated data and starting point for test.
     # N_VERTICES = 10
@@ -190,9 +212,7 @@ if __name__ == "__main__":
 
     solutions = []
 
-    # plan_sizes = range(10, len(vertex_list))
-    # plan_sizes = list(plan_sizes)[::50]
-    plan_sizes = list(range(7))
+    plan_sizes = list(range(50, 200, 10))
 
     # Keep track of vertices and edges used.
     graph_history = []
@@ -208,6 +228,8 @@ if __name__ == "__main__":
 
         # Add to list of vertices and edges used.
         graph_history.append(Graph(vertices, edges))
+        graph_history[-1].update_states([i for i in range(len(graph_history[-1].vertices))],
+                                        np.vstack((positions, rotations)))
 
     create_trajectory_gif(solutions, solutions[-1], graph_history, rotation_solutions)
 

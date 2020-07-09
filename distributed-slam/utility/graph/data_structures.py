@@ -80,8 +80,8 @@ class Graph:
 
     def __init__(self, vertices, edges):
 
-        self.vertices = copy.copy(vertices)
-        self.edges = copy.copy(edges)
+        self.vertices = [copy.copy(v) for v in vertices]
+        self.edges = [copy.copy(e) for e in edges]
 
     def get_vertices(self):
 
