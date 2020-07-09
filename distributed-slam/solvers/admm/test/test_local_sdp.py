@@ -7,32 +7,10 @@ from itertools import repeat
 
 from solvers.admm.fixed_sdp import solve_local_sdp, rotation_matrix, rotation_vector, vector_to_complex, offset_matrix
 from solvers.sdp import pgo
+from utility.common import cost_function
 from utility.graph import Graph
 from utility.parsing import parse_g2o
 from utility.visualization import plot_vertices, draw_plots
-
-
-def cost_function(graph):
-
-    sum = 0
-
-    for e in graph.edges:
-
-        in_vertex = graph.get_vertex(e.in_vertex)
-        out_vertex = graph.get_vertex(e.out_vertex)
-
-        # Difference of in and out vertex positions.
-        difference = (in_vertex.position - out_vertex.position).reshape(-1, 1)
-
-        # First term in sum.
-        first_term = difference - offset_matrix(e.relative_pose) @ rotation_vector(out_vertex.rotation)
-
-        # Second term in sum.
-        second_term = rotation_vector(in_vertex.rotation) - rotation_matrix(e.rotation) @ rotation_vector(out_vertex.rotation)
-
-        sum += first_term.T @ first_term + second_term.T @ second_term
-
-    return sum
 
 
 def max_cost(graph):

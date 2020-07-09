@@ -9,6 +9,7 @@ from multiprocessing import Pool
 from solvers.admm.fixed_sdp import vector_to_complex, rotation_vector, rotation_matrix, offset_matrix
 from solvers.sdp import w_from_vertices_and_edges, pgo
 from solvers.sdp.matrix_creation import w_from_graph
+from utility.common import cost_function
 from utility.graph import Graph
 from utility.parsing import parse_g2o
 from utility.visualization import plot_complex_list, plot_vertices, draw_plots
@@ -117,57 +118,6 @@ class LocalOptimizer:
             np.save("pgo_solution.npy", self.sdp_solution)
 
 
-def cost_function(graph):
-
-    sum = 0
-
-    for e in graph.edges:
-
-        in_vertex = graph.get_vertex(e.in_vertex)
-        out_vertex = graph.get_vertex(e.out_vertex)
-
-        # Difference of in and out vertex positions.
-        difference = (in_vertex.position - out_vertex.position).reshape(-1, 1)
-
-        # First term in sum.
-        first_term = difference - offset_matrix(e.relative_pose) @ rotation_vector(out_vertex.rotation)
-
-        # Second term in sum.
-        second_term = rotation_vector(in_vertex.rotation) - rotation_matrix(e.rotation) @ rotation_vector(out_vertex.rotation)
-
-        sum += first_term.T @ first_term + second_term.T @ second_term
-
-    return sum.item()
-
-
-def rank_one_approximation(X):
-
-    # Return scaled, principle eigenvector of input matrix.
-    w, v = sc.linalg.eigh(X, eigvals=(X.shape[0] - 1, X.shape[0] - 1))
-
-    return np.sqrt(w) * v
-
-
-def test_cost_function(graph):
-
-    x = graph.get_complex_state()
-    x[0:len(graph.vertices)] = x[0:len(graph.vertices)] - x[0]
-    x = x[1:]
-    w = w_from_graph(graph, factored=True)
-
-    sdp_cost = w @ x
-    true_cost = cost_function(graph)
-
-    return
-
-
-def vector_angle(x, y):
-
-    # Compute normalized inner product between two vectors.
-    inner = np.dot(x / np.linalg.norm(x), y / np.linalg.norm(y))
-
-    return np.arccos(inner)
-
 if __name__ == "__main__":
 
     optimizer = LocalOptimizer(pgo_file="/home/joe/repositories/distributed-slam/datasets/input_MITb_g2o.g2o")
@@ -181,9 +131,7 @@ if __name__ == "__main__":
         vertex_id = i % (len(optimizer.graph.vertices) - 1)
         pre_cost = cost_function(optimizer.graph.neighborhood(vertex_id))
 
-        test_cost_function(optimizer.graph.neighborhood(vertex_id, reduce=True)[0])
         x = optimizer.solve_local_tree_sdp(vertex_id)
-        test_cost_function(optimizer.graph.neighborhood(vertex_id, reduce=True)[0])
 
         # Testing cost.
         #W = w_from_graph(optimizer.graph.neighborhood(i, True)[0])

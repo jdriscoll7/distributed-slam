@@ -143,14 +143,6 @@ def create_sdp_data_matrix(a, b):
                      [np.conjugate(cross_term.T), np.conjugate(b.T) @ b]])
 
 
-def rank_one_approximation(X):
-
-    # Return scaled, principle eigenvector of input matrix.
-    w, v = sc.linalg.eigh(X, eigvals=(X.shape[0] - 1, X.shape[0] - 1))
-
-    return w * v @ np.conjugate(v.T)
-
-
 def solve_local_sdp(vertex, graph, verbose=False):
 
     # Get neighborhood of vertex.

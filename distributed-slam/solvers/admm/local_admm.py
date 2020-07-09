@@ -8,20 +8,25 @@ from multiprocessing import Pool
 from solvers.admm.fixed_sdp import vector_to_complex, rotation_vector, rotation_matrix, offset_matrix
 from solvers.admm.local_updates import LocalOptimizer
 from solvers.sdp.matrix_creation import w_from_graph
+from utility.common import rank_one_approximation
+from utility.parsing import parse_g2o
 from utility.visualization import plot_complex_list, plot_vertices, draw_plots, plot_pose_graph
 from utility.graph.data_structures import Graph
 
 
-class LocalADMM(LocalOptimizer):
+class LocalADMM:
 
-    def __init__(self, pgo_file=None, vertices=None, edges=None, graph=None):
+    def __init__(self, graph=None, pgo_file=None, hot_start=False):
 
-        # Initialize basic problem details.
-        LocalOptimizer.__init__(self, pgo_file, vertices, edges, graph)
+        if pgo_file is not None:
+            graph = Graph(*parse_g2o(pgo_file))
 
-        # Remove this later... initializes to global solution.
-        # self.sdp_solve(load=True)
-        # self.graph = self.sdp_solution
+        # Store the problem graph.
+        self.graph = graph
+
+        if hot_start:
+            self.sdp_solve()
+            self.graph = self.sdp_solution
 
         # Make variables (slack, local, dual) initialized to original graph.
         self.slack = np.zeros(shape=(len(2*self.graph.vertices), 2*len(self.graph.vertices)), dtype=np.complex)
@@ -63,46 +68,6 @@ class LocalADMM(LocalOptimizer):
         # Obtain and set results.
         for i, result in enumerate(results):
             self.local_variables[i] = result
-
-    def local_solve(self, i, rho=1):
-
-        # Store local graph.
-        graph = self.local_graphs[i][0]
-
-        # Find SDP data matrix for this vertex.
-        w = self.w[i]
-
-        # Matrix optimization variable.
-        X = cp.Variable(hermitian=True, shape=w.shape)
-
-        # Convert global and dual states into rank one matrices.
-        U = cp.Constant(self.dual[i])
-
-        # Slack variable for star-neighborhood of vertex i.
-        Z = self.get_slack_submatrix(i)
-
-        # Add positive semi-definiteness constraint.
-        constraints = [X >> 0] + [X[i, i] == 1 for i in range(w.shape[0] - (w.shape[0] + 1) // 2, w.shape[0])]
-
-        # Define function f to be minimized.
-        f = cp.abs(cp.trace(w @ X)) + (rho / 2 * cp.norm(X - Z + U, "fro") ** 2)
-
-        # Form and solve problem.
-        problem = cp.Problem(cp.Minimize(f), constraints)
-        problem.solve(verbose=False, max_iters=100000)
-
-        # If problem is infeasible, make no change.
-        if problem.status is not "optimal":
-            X = graph.get_complex_state(centered=False)
-        else:
-            # Find rank-one approximation to program solution.
-            X = rank_one_approximation(X.value)
-
-        # Add anchored pose if anchor vertex contained in neighborhood.
-        if 0 in self.local_graphs[i][1]:
-            X = np.vstack((np.zeros((1, 1)), X))
-
-        return X
 
     def local_solve_pgd(self, i, rho=1):
 
@@ -206,33 +171,6 @@ class LocalADMM(LocalOptimizer):
             indices = indices[1:]
 
         return self.slack[np.ix_(indices, indices)]
-
-    def synchronize_signs(self, results):
-
-        # Keep track of changed results.
-        change_list = []
-
-        # Determine signs for each neighborhood (by looking at the state of the center of the star-neighborhood).
-        for i in range(1, len(results)):
-
-            # All estimates corresponding to vertex i should match this sign.
-            match_sign = np.sign(results[i][self.local_graphs[i][1].index(i)])
-            change_list.append(i)
-
-            for result_index, result in enumerate(results):
-
-                # Neighborhood id's for current result and the local estimate being used to match signs.
-                id_list = self.local_graphs[result_index][1]
-
-                if i in id_list and result_index not in change_list and np.sign(result[id_list.index(i)]) != match_sign:
-                    results[result_index] *= -1
-                    change_list.append(result_index)
-
-            # Early break if no more changes can be made.
-            if len(change_list) == len(results):
-                break
-
-        return results
 
     def synchronize_angles(self, results):
 
@@ -357,55 +295,6 @@ def pgo_projection(X):
         Z = Z - X + Y
 
     return X
-
-
-def cost_function(graph):
-
-    sum = 0
-
-    for e in graph.edges:
-
-        in_vertex = graph.get_vertex(e.in_vertex)
-        out_vertex = graph.get_vertex(e.out_vertex)
-
-        # Difference of in and out vertex positions.
-        difference = (in_vertex.position - out_vertex.position).reshape(-1, 1)
-
-        # First term in sum.
-        first_term = difference - offset_matrix(e.relative_pose) @ rotation_vector(out_vertex.rotation)
-
-        # Second term in sum.
-        second_term = rotation_vector(in_vertex.rotation) - rotation_matrix(e.rotation) @ rotation_vector(out_vertex.rotation)
-
-        sum += first_term.T @ first_term + second_term.T @ second_term
-
-    return sum.item()
-
-
-def rank_one_approximation(X):
-
-    # Return scaled, principle eigenvector of input matrix.
-    w, v = sc.linalg.eigh(X, eigvals=(X.shape[0] - 1, X.shape[0] - 1))
-
-    return np.sqrt(w) * v
-
-
-def vector_angle(x, y):
-
-    # Compute normalized inner product between two vectors.
-    inner = np.dot(x / np.linalg.norm(x), y / np.linalg.norm(y))
-
-    return np.arccos(inner)
-
-
-def pd_approximation(X):
-
-    # Return scaled, principle eigenvector of input matrix.
-    w, v = sc.linalg.eigh(X)
-
-    w[w < 0] = 0
-
-    return v * w @ np.conj(v.T)
 
 
 def evaluate_local_solutions(admm_optimizer):

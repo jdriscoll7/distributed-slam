@@ -2,6 +2,7 @@ import numpy as np
 
 from solvers.admm.fixed_sdp import offset_matrix, rotation_vector, rotation_matrix
 from solvers.admm.local_admm import LocalADMM
+from utility.common import cost_function
 from utility.graph import Graph
 from utility.parsing.g2o import write_g2o, parse_g2o
 from utility.data_generation.planning import serial_graph_plan
@@ -23,29 +24,6 @@ def incremental_graphs(pgo_file, directory='./serial_graphs/'):
         graph_list.append(Graph(v, e))
 
     return graph_list
-
-
-def cost_function(graph):
-
-    sum = 0
-
-    for e in graph.edges:
-
-        in_vertex = graph.get_vertex(e.in_vertex)
-        out_vertex = graph.get_vertex(e.out_vertex)
-
-        # Difference of in and out vertex positions.
-        difference = (in_vertex.position - out_vertex.position).reshape(-1, 1)
-
-        # First term in sum.
-        first_term = difference - offset_matrix(e.relative_pose) @ rotation_vector(out_vertex.rotation)
-
-        # Second term in sum.
-        second_term = rotation_vector(in_vertex.rotation) - rotation_matrix(e.rotation) @ rotation_vector(out_vertex.rotation)
-
-        sum += first_term.T @ first_term + second_term.T @ second_term
-
-    return sum.item()
 
 
 def print_local_variables(local_variables):
