@@ -15,7 +15,7 @@ from utility.visualization import plot_complex_list, draw_plots, plot_pose_graph
 from utility.parsing import parse_g2o
 import matplotlib.gridspec as gridspec
 
-from solvers.experimental.local_admm import cost_function
+from solvers.admm.local_admm import cost_function
 
 
 def _create_distance_matrix(data, solution):

@@ -6,7 +6,7 @@ import copy
 from multiprocessing import Pool
 
 
-from solvers.experimental.fixed_sdp import vector_to_complex, rotation_vector, rotation_matrix, offset_matrix
+from solvers.admm.fixed_sdp import vector_to_complex, rotation_vector, rotation_matrix, offset_matrix
 from solvers.sdp import w_from_vertices_and_edges, pgo
 from solvers.sdp.matrix_creation import w_from_graph
 from utility.graph import Graph

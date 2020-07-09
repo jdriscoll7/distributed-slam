@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from solvers.experimental.local_admm import LocalADMM
+from solvers.admm.local_admm import LocalADMM
 from utility.visualization import plot_pose_graph
 from utility.visualization.plot import plot_graph
 

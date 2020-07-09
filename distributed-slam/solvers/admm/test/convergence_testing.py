@@ -1,7 +1,7 @@
 import numpy as np
 
-from solvers.experimental.fixed_sdp import offset_matrix, rotation_vector, rotation_matrix
-from solvers.experimental.local_admm import LocalADMM
+from solvers.admm.fixed_sdp import offset_matrix, rotation_vector, rotation_matrix
+from solvers.admm.local_admm import LocalADMM
 from utility.graph import Graph
 from utility.parsing.g2o import write_g2o, parse_g2o
 from utility.data_generation.planning import serial_graph_plan

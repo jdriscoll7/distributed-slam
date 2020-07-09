@@ -5,7 +5,7 @@ from multiprocessing import Pool
 from itertools import repeat
 
 
-from solvers.experimental.fixed_sdp import solve_local_sdp, rotation_matrix, rotation_vector, vector_to_complex, offset_matrix
+from solvers.admm.fixed_sdp import solve_local_sdp, rotation_matrix, rotation_vector, vector_to_complex, offset_matrix
 from solvers.sdp import pgo
 from utility.graph import Graph
 from utility.parsing import parse_g2o
