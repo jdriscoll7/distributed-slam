@@ -1,6 +1,5 @@
 import numpy as np
 
-from solvers.admm.fixed_sdp import offset_matrix, rotation_vector, rotation_matrix
 from solvers.admm.local_admm import LocalADMM
 from utility.common import cost_function
 from utility.graph import Graph
@@ -52,51 +51,36 @@ def print_eigenvector_history(local_variables):
 
 def global_solution_graph(file_name):
 
-    positions, rotations, _ = pgo(file_name)
-
-    vertices, edges = parse_g2o(file_name)
-
-    graph = Graph(vertices, edges)
-
-    graph.update_states(vertex_ids=list(range(len(vertices))), state=np.vstack((positions, rotations)))
-
-    return graph
+    return pgo(graph=Graph(*parse_g2o(file_name)), file_name=file_name)[0]
 
 
 if __name__ == "__main__":
 
     PGO_FILE = "/home/joe/repositories/distributed-slam/datasets/custom_problem.g2o"
 
-    # Generate incremental graphs.
-    graph_list = incremental_graphs(pgo_file=PGO_FILE)
-
     # Find global solution.
     global_solution = global_solution_graph(PGO_FILE)
 
-    cost_function(global_solution)
+    # cost_function(global_solution)
 
     # Store history of local variables.
     local_variables = []
 
     # Initialize optimizer to first of graphs.
-    initial_graph = graph_list[0]
-    admm_optimizer = LocalADMM(graph=initial_graph)
+    admm_optimizer = LocalADMM(graph=global_solution, partition=[[0, 1, 2, 3, 4, 5]])
 
     # Solve and append local variables from initial graph.
     # admm_optimizer.run_solver(iterations=100)
     # local_variables.append(admm_optimizer.local_variables)
 
-    for i, g in enumerate(graph_list[1:]):
-
-        # "Augment" the problem (i.e. add vertex by creating one new local variable without changing other subproblems).
-        admm_optimizer.augment(g, vertex_id=g.vertices[-1].id)
+    for i in range(1000):
 
         # Run solver.
-        admm_optimizer.run_solver(iterations=200, rho=0.2)
+        admm_optimizer.run_solver(iterations=1, rho=0)
 
         # Append the local variables to the history of local variables.
         local_variables.append(admm_optimizer.local_variables)
-        print("Graph of size %d - Cost: %f" % (i + 3, cost_function(admm_optimizer.current_estimate())))
+        print("Step %d - Cost: %f" % (i + 3, cost_function(admm_optimizer.current_estimate())))
 
     print_local_variables(local_variables)
     print_eigenvector_history(local_variables)

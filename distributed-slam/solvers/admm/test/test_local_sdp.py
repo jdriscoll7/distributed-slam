@@ -27,31 +27,17 @@ def max_cost(graph):
 
 if __name__ == "__main__":
 
-    # # Carlone SDP solution.
-    # global_vertices, global_edges = parse_g2o("../../../../datasets/input_MITb_g2o.g2o")
-    # positions, rotations, _ = pgo(global_vertices, global_edges)
-    #
-    # for i, v in enumerate(global_vertices):
-    #     v.set_state(positions[i], rotations[i])
-
-    graph = pickle.load(open("global_solution.graph", "rb"))
-
     # Generate pose graph matrix.
-    vertices, edges = parse_g2o("../../../../datasets/input_MITb_g2o.g2o")
-    #graph = Graph(vertices, edges)
-
-    rng = np.random.SFC64()
-
-    #plot_vertices(graph.vertices)
+    vertices, edges = parse_g2o("datasets/input_MITb_g2o.g2o")
+    graph = Graph(vertices, edges)
 
     i = 0
     iteration = 0
     costs = dict([(v.id, []) for v in graph.vertices])
 
-    pool = Pool(processes=16)
+    pool = Pool(processes=10)
 
-
-    while iteration < 100000:
+    while iteration < 10000:
 
         results = pool.starmap(solve_local_sdp, [(i, graph) for i in range(1, len(graph.vertices))])
 

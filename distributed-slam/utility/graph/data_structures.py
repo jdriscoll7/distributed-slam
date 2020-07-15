@@ -109,7 +109,10 @@ class Graph:
 
         self.get_vertex(vertex_id).set_state(position, rotation)
 
-    def update_states(self, vertex_ids, state):
+    def update_states(self, state, vertex_ids=None):
+
+        if vertex_ids is None:
+            vertex_ids = [i for i in range(state.shape[0])]
 
         for i in range(state.shape[0] // 2):
             self.set_state(vertex_ids[i], position=state[i, 0], rotation=state[i + state.shape[0] // 2, 0])
@@ -128,10 +131,17 @@ class Graph:
 
         return x
 
-    def neighborhood(self, i, reduce=False):
+    def subgraph(self, i, reduce=False, neighborhood=False):
+
+        # If i is not a list, make it become a single-element list to allow general neighborhoods.
+        if not isinstance(i, list):
+            i = [i]
 
         # Find edges that contain i.
-        edges = [copy.copy(e) for e in self.edges if e.out_vertex == i or e.in_vertex == i]
+        if neighborhood:
+            edges = [copy.copy(e) for e in self.edges if e.out_vertex in i or e.in_vertex in i]
+        else:
+            edges = [copy.copy(e) for e in self.edges if e.out_vertex in i and e.in_vertex in i]
 
         # Find vertices covered by edges.
         vertex_ids = list(set([e.in_vertex for e in edges] + [e.out_vertex for e in edges]))
@@ -152,27 +162,37 @@ class Graph:
         for edge in edge_list:
             self.edges.remove(edge)
 
-    def tree_partition(self):
+    def partition(self, partition_groups=None):
 
-        sub_trees = []
+        # Create a copy of graph to remove edges from (prevent unexpected mutations to edges).
+        copy_graph = Graph(self.vertices, self.edges)
 
-        for i in range(len(self.vertices)):
+        graphs = []
 
-            # Need an un-reduced and a reduced neighborhood.
-            unreduced_neighborhood = self.neighborhood(i, reduce=False)
-            neighborhood, id_list = self.neighborhood(i, reduce=True)
+        if partition_groups is None:
+            partition_groups = [[i for i in range(len(self.vertices))]]
+
+        for vertex_list in partition_groups:
+
+            if vertex_list != partition_groups[-1]:
+                # Need an un-reduced and a reduced neighborhood.
+                unreduced_neighborhood = copy_graph.subgraph(vertex_list, reduce=False)
+                neighborhood, id_list = copy_graph.subgraph(vertex_list, reduce=True)
+            else:
+                unreduced_neighborhood = copy_graph.subgraph(vertex_list, reduce=False, neighborhood=True)
+                neighborhood, id_list = copy_graph.subgraph(vertex_list, reduce=True, neighborhood=True)
 
             if len(neighborhood.vertices) > 0:
-                sub_trees.append((neighborhood, id_list))
+                graphs.append((neighborhood, id_list))
 
             # Remove edges from previous tree.
-            self.remove_edges(unreduced_neighborhood.edges)
+            copy_graph.remove_edges(unreduced_neighborhood.edges)
 
             # Early termination if there are no more edges.
-            if len(self.edges) == 0:
+            if len(copy_graph.edges) == 0:
                 break
 
-        return sub_trees
+        return graphs
 
 
 def reduce_ids(vertices, edges):

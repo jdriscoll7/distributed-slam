@@ -5,10 +5,10 @@ import copy
 from multiprocessing import Pool
 
 
-from solvers.admm.fixed_sdp import vector_to_complex, rotation_vector, rotation_matrix, offset_matrix
 from solvers.admm.local_updates import LocalOptimizer
+from solvers.sdp import pgo
 from solvers.sdp.matrix_creation import w_from_graph
-from utility.common import rank_one_approximation
+from utility.common import rank_one_approximation, cost_function, pd_approximation
 from utility.parsing import parse_g2o
 from utility.visualization import plot_complex_list, plot_vertices, draw_plots, plot_pose_graph
 from utility.graph.data_structures import Graph
@@ -16,13 +16,15 @@ from utility.graph.data_structures import Graph
 
 class LocalADMM:
 
-    def __init__(self, graph=None, pgo_file=None, hot_start=False):
+    def __init__(self, graph=None, pgo_file=None, hot_start=False, partition=None):
 
         if pgo_file is not None:
             graph = Graph(*parse_g2o(pgo_file))
 
         # Store the problem graph.
         self.graph = graph
+        self.vertices = self.graph.vertices
+        self.edges = self.graph.edges
 
         if hot_start:
             self.sdp_solve()
@@ -30,7 +32,7 @@ class LocalADMM:
 
         # Make variables (slack, local, dual) initialized to original graph.
         self.slack = np.zeros(shape=(len(2*self.graph.vertices), 2*len(self.graph.vertices)), dtype=np.complex)
-        self.local_graphs = self.graph.tree_partition()
+        self.local_graphs = self.graph.partition(partition)
         self.local_variables = [g[0].get_complex_state() @ np.conj(g[0].get_complex_state().T)
                                 for g in self.local_graphs]
 
@@ -55,12 +57,23 @@ class LocalADMM:
             self.dual.append(np.zeros((dual_size, dual_size)))
             self.w.append(w_from_graph(neighborhood, anchored=anchored))
 
+    def sdp_solve(self, load_file=""):
+
+        if load_file is not None:
+            self.graph.update_states(np.load("pgo_solution.npy", allow_pickle=True))
+        else:
+            self.graph = pgo(self.graph)[0]
+
     def update_local_estimates(self, rho=1):
 
         # Pool of at most 8 processes - otherwise number of vertices if smaller.
         pool = Pool(processes=min(8, len(self.local_variables)))
 
-        results = pool.starmap(self.local_solve_pgd, [(i, rho) for i in range(len(self.local_graphs))])
+        # results = pool.starmap(self.local_solve_pgd, [(i, rho) for i in range(len(self.local_graphs))])
+
+        results = []
+        for i in range(len(self.local_variables)):
+            results.append(self.local_solve_pgd(i, rho))
 
         # Close out all processes spawned by pool/starmap.
         pool.terminate()
@@ -85,7 +98,7 @@ class LocalADMM:
 
         # Projected gradient descent.
         alpha = 0.5
-        tol = 1e-3
+        tol = 1e-5
         for _ in range(1, 1000):
 
             previous_X = X
@@ -172,6 +185,33 @@ class LocalADMM:
 
         return self.slack[np.ix_(indices, indices)]
 
+    def synchronize_signs(self, results):
+
+        # Keep track of changed results.
+        change_list = []
+
+        # Determine signs for each neighborhood (by looking at the state of the center of the star-neighborhood).
+        for i in range(1, len(results)):
+
+            # All estimates corresponding to vertex i should match this sign.
+            match_sign = np.sign(results[i][self.local_graphs[i][1].index(i)])
+            change_list.append(i)
+
+            for result_index, result in enumerate(results):
+
+                # Neighborhood id's for current result and the local estimate being used to match signs.
+                id_list = self.local_graphs[result_index][1]
+
+                if i in id_list and result_index not in change_list and np.sign(result[id_list.index(i)]) != match_sign:
+                    results[result_index] *= -1
+                    change_list.append(result_index)
+
+            # Early break if no more changes can be made.
+            if len(change_list) == len(results):
+                break
+
+        return results
+
     def synchronize_angles(self, results):
 
         local_graphs = [(copy.copy(x), copy.copy(y)) for x, y in copy.copy(self.local_graphs)]
@@ -221,7 +261,7 @@ class LocalADMM:
 
         graph = Graph(self.vertices, self.edges)
         solution = evaluate_local_solutions(self)
-        graph.update_states([i for i in range(len(graph.vertices))], solution)
+        graph.update_states(solution)
 
         print(cost_function(graph))
         # plot_pose_graph(graph=graph)
@@ -267,14 +307,6 @@ class LocalADMM:
 
         # Reset "global" slack variable to zero matrix with one additional column and row than before.
         self.slack = np.zeros(shape=(self.slack.shape[0] + 1, self.slack.shape[1] + 1), dtype=np.complex)
-
-    def join_problem(self):
-
-        # This should only be used when all local problems are identical - remove all identical parts.
-        self.w = [self.w[0]]
-        self.local_variables = [self.local_variables[0]]
-        self.local_graphs = [self.local_graphs[0]]
-        self.dual = [self.dual[0]]
 
 
 def pgo_projection(X):

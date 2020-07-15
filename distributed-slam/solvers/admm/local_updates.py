@@ -6,7 +6,6 @@ import copy
 from multiprocessing import Pool
 
 
-from solvers.admm.fixed_sdp import vector_to_complex, rotation_vector, rotation_matrix, offset_matrix
 from solvers.sdp import w_from_vertices_and_edges, pgo
 from solvers.sdp.matrix_creation import w_from_graph
 from utility.common import cost_function
@@ -90,7 +89,7 @@ class LocalOptimizer:
         X[:X.shape[0] // 2] = X[:X.shape[0] // 2] - offset
 
         # Apply changes to graph.
-        self.graph.update_states(vertex_ids, X)
+        self.graph.update_states(X, vertex_ids)
 
         return X
 
@@ -103,16 +102,14 @@ class LocalOptimizer:
         if load:
 
             # Set states in solution graph.
-            self.sdp_solution.update_states([i for i in range(len(self.graph.vertices))],
-                                            np.load("pgo_solution.npy", allow_pickle=True))
+            self.sdp_solution.update_states(np.load("pgo_solution.npy", allow_pickle=True))
 
         else:
             # Find solution.
             positions, rotations, _ = pgo(self.vertices, self.edges)
 
             # Set states in solution graph.
-            self.sdp_solution.update_states([i for i in range(len(self.graph.vertices))],
-                                            np.vstack([positions, rotations]))
+            self.sdp_solution.update_states(np.vstack([positions, rotations]))
 
             # Save solution for future use.
             np.save("pgo_solution.npy", self.sdp_solution)

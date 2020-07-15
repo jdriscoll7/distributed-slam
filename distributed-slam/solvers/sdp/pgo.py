@@ -4,6 +4,7 @@ import numpy as np
 from scipy.linalg import null_space
 
 from solvers.sdp import w_from_vertices_and_edges, w_to_sedumi
+from utility.graph import Graph
 from utility.parsing import parse_g2o
 from utility.visualization import plot_complex_list, plot_vertices, draw_plots
 from utility.neos import neos_sdpt3_solve
@@ -129,18 +130,16 @@ def solve_suboptimal_program(basis):
     return z.value
 
 
-def _pgo(w):
+def _pgo(w, graph):
     """
     Implementation of algorithm 1 in Carlone paper - performs PGO given
     a W matrix, which is described in detail in paper. Code also exists
     in repository for creating W matrix from things like .g2o files.
 
     :param w:               large matrix used and described in Carlone paper
+    :param graph:           input graph - used to format output into graph object
     :return:                solution and details
     """
-
-    # Initialize return values.
-    solution = []
 
     # Solve SDP with NEOS.
     print("Solving dual problem with NEOS.")
@@ -199,38 +198,25 @@ def _pgo(w):
     positions = np.vstack([0, solution[:len(solution)//2]])
     rotations = solution[len(solution)//2:]
 
+    graph.update_states(np.vstack((positions, rotations)))
+
     # Return solution along with optimality certificate.
-    return positions, rotations, dual_solution
+    return graph, dual_solution
 
 
-def pgo(x=None, y=None, graph=None):
+def pgo(graph, file_name=""):
     """
     Wrapper for main pgo function. Can take file name or W matrix directly.
 
-    :param x:     Either W matrix, file name, or vertices.
-    :param y:     Either None or edges.
-    :param graph: Optionally specify problem with graph object.
-    :return:      Solution to PGO problem found with SDP.
+    :param graph:       Specify problem with graph object.
+    :param file_name:   Optional path to g2o file.
+    :return:            Solution to PGO problem found with SDP.
     """
 
-    if graph is not None:
-        return _pgo(w_from_vertices_and_edges(graph.vertices, graph.edges))
+    if file_name is not None:
+        graph = Graph(*parse_g2o(path=file_name))
 
-    # If y is not empty, then arguments are vertices and edges.
-    if y is not None:
-        return _pgo(w_from_vertices_and_edges(x, y))
-
-    # If type is a string, then input is a file name.
-    if isinstance(x, str):
-        return _pgo(w_from_vertices_and_edges(*parse_g2o(x)))
-
-    # If type is a numpy array, then the input is the W matrix.
-    if isinstance(x, np.ndarray):
-        return _pgo(x)
-
-    # Raise error otherwise.
-    else:
-        raise TypeError
+    return _pgo(w_from_vertices_and_edges(graph.vertices, graph.edges), graph)
 
 
 if __name__ == "__main__":

@@ -28,6 +28,55 @@ def vector_angle(x, y):
     return np.arccos(inner)
 
 
+def offset_matrix(relative_pose):
+    """
+    Creates the D_ij matrix used in Carlone paper to simplify PGO function..
+
+    :param relative_pose:   vector containing relative, planar measurement
+    :return:                2x2 array representing offset matrix
+    """
+
+    return np.array([[relative_pose[0], -relative_pose[1]],
+                     [relative_pose[1], relative_pose[0]]])
+
+
+def rotation_matrix(theta):
+    """
+    Creates the basic, 2x2 rotation matrix in SO(2) determined by angle theta.
+
+    :param theta:   counter-clockwise rotation angle
+    :return:        2x2 rotation matrix represented by angle
+    """
+
+    return np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+
+
+def rotation_vector(theta):
+    """
+    Creates a 2x1 rotation vector determined by angle theta.
+
+    :param theta:   counter-clockwise rotation angle
+    :return:        2x1 rotation vector represented by angle
+    """
+
+    return np.array([[np.cos(theta)], [np.sin(theta)]])
+
+
+def vector_to_complex(vector):
+
+    return vector[0] + 1j*vector[1]
+
+
+def complex_to_vector(x):
+
+    return np.vstack((np.real(x), np.imag(x)))
+
+
+def rotation_to_complex(angle):
+
+    return np.exp(1j*angle)
+
+
 def cost_function(graph):
 
     sum = 0
@@ -48,4 +97,4 @@ def cost_function(graph):
 
         sum += first_term.T @ first_term + second_term.T @ second_term
 
-    return sum.item()
+    return np.asarray(sum).item()

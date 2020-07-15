@@ -228,8 +228,7 @@ if __name__ == "__main__":
 
         # Add to list of vertices and edges used.
         graph_history.append(Graph(vertices, edges))
-        graph_history[-1].update_states([i for i in range(len(graph_history[-1].vertices))],
-                                        np.vstack((positions, rotations)))
+        graph_history[-1].update_states(np.vstack((positions, rotations)))
 
     create_trajectory_gif(solutions, solutions[-1], graph_history, rotation_solutions)
 

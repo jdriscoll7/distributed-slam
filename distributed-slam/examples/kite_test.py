@@ -92,9 +92,8 @@ if __name__ == "__main__":
     no_handle_kite = kite(n=30, d=10, position_sigma=position_sigma, rotation_sigma=rotation_sigma)[0]
 
     # Solve global problem and store positions and rotations.
-    positions, rotations = pgo(graph=no_handle_kite)[0:2]
+    no_handle_kite = pgo(graph=no_handle_kite)[0]
 
-    no_handle_kite.update_states([i for i in range(len(no_handle_kite.vertices))], np.vstack((positions, rotations)))
     print(cost_function(no_handle_kite))
 
     for i in range(5, 20, 1):
@@ -105,7 +104,7 @@ if __name__ == "__main__":
         # Solve global problem and store positions and rotations.
         positions, rotations = pgo(graph=handle_kite)[0:2]
 
-        handle_kite.update_states([i for i in range(len(handle_kite.vertices))], np.vstack((positions, rotations)))
+        handle_kite.update_states(np.vstack((positions, rotations)))
         print(cost_function(handle_kite))
         solutions.append(handle_kite)
 
