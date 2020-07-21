@@ -1,5 +1,6 @@
 import numpy as np
 
+from examples.kite_test import kite
 from solvers.admm.local_admm import LocalADMM
 from utility.common import cost_function
 from utility.graph import Graph
@@ -56,7 +57,9 @@ def global_solution_graph(file_name):
 
 if __name__ == "__main__":
 
-    PGO_FILE = "/home/joe/repositories/distributed-slam/datasets/custom_problem.g2o"
+
+    kite(n=8, d=2, save_file="/home/joe/repositories/distributed-slam/datasets/kite_8_2.g2o")
+    PGO_FILE = "/home/joe/repositories/distributed-slam/datasets/kite_8_2.g2o"
 
     # Find global solution.
     global_solution = global_solution_graph(PGO_FILE)
@@ -67,7 +70,8 @@ if __name__ == "__main__":
     local_variables = []
 
     # Initialize optimizer to first of graphs.
-    admm_optimizer = LocalADMM(graph=global_solution, partition=[[0, 1, 2, 3, 4, 5]])
+    admm_optimizer = LocalADMM(graph=global_solution, partition=[[0, 1, 2, 3, 4, 5, 6], [7, 8, 9, 10]])
+    admm_optimizer.current_estimate()
 
     # Solve and append local variables from initial graph.
     # admm_optimizer.run_solver(iterations=100)
@@ -76,7 +80,7 @@ if __name__ == "__main__":
     for i in range(1000):
 
         # Run solver.
-        admm_optimizer.run_solver(iterations=1, rho=0)
+        admm_optimizer.run_solver(iterations=100, rho=0.1)
 
         # Append the local variables to the history of local variables.
         local_variables.append(admm_optimizer.local_variables)

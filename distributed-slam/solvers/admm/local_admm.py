@@ -36,6 +36,9 @@ class LocalADMM:
         self.local_variables = [g[0].get_complex_state() @ np.conj(g[0].get_complex_state().T)
                                 for g in self.local_graphs]
 
+        # Allow certain local problems to be fixed - initialize all problems to not be fixed.
+        self.fixed = [False]*len(self.local_graphs)
+
         # Initialize dual and w matrices.
         self.dual = []
         self.w = []
@@ -69,11 +72,11 @@ class LocalADMM:
         # Pool of at most 8 processes - otherwise number of vertices if smaller.
         pool = Pool(processes=min(8, len(self.local_variables)))
 
-        # results = pool.starmap(self.local_solve_pgd, [(i, rho) for i in range(len(self.local_graphs))])
+        results = pool.starmap(self.local_solve_pgd, [(i, rho) for i in range(len(self.local_graphs))])
 
-        results = []
-        for i in range(len(self.local_variables)):
-            results.append(self.local_solve_pgd(i, rho))
+        # results = []
+        # for i in range(len(self.local_variables)):
+        #     results.append(self.local_solve_pgd(i, rho))
 
         # Close out all processes spawned by pool/starmap.
         pool.terminate()
@@ -98,8 +101,8 @@ class LocalADMM:
 
         # Projected gradient descent.
         alpha = 0.5
-        tol = 1e-5
-        for _ in range(1, 1000):
+        tol = 1e-10
+        for _ in range(1, 100000):
 
             previous_X = X
 
@@ -185,75 +188,37 @@ class LocalADMM:
 
         return self.slack[np.ix_(indices, indices)]
 
-    def synchronize_signs(self, results):
-
-        # Keep track of changed results.
-        change_list = []
-
-        # Determine signs for each neighborhood (by looking at the state of the center of the star-neighborhood).
-        for i in range(1, len(results)):
-
-            # All estimates corresponding to vertex i should match this sign.
-            match_sign = np.sign(results[i][self.local_graphs[i][1].index(i)])
-            change_list.append(i)
-
-            for result_index, result in enumerate(results):
-
-                # Neighborhood id's for current result and the local estimate being used to match signs.
-                id_list = self.local_graphs[result_index][1]
-
-                if i in id_list and result_index not in change_list and np.sign(result[id_list.index(i)]) != match_sign:
-                    results[result_index] *= -1
-                    change_list.append(result_index)
-
-            # Early break if no more changes can be made.
-            if len(change_list) == len(results):
-                break
-
-        return results
-
     def synchronize_angles(self, results):
 
-        local_graphs = [(copy.copy(x), copy.copy(y)) for x, y in copy.copy(self.local_graphs)]
+        update_list = []
 
-        for v in self.vertices:
+        for v_id in [v.id for v in self.vertices]:
 
-            containing_graphs = [g for g in local_graphs if v.id in g[1]]
+            # Find graphs that contain these vertices.
+            containing_graphs = [g for g in self.local_graphs if v_id in g[1]]
+            containing_indices = [i for i, g in enumerate(self.local_graphs) if v_id in g[1]]
 
-            if len(containing_graphs) > 0:
-                local_index = local_graphs.index(containing_graphs[0])
-                vertex_index = containing_graphs[0][1].index(v.id)
-                reference_angle = np.angle(results[local_index][vertex_index])
+            # Only count updates that make local variables agree.
+            if len(containing_graphs) > 1:
 
-            for i, g in enumerate(containing_graphs):
-                local_index = local_graphs.index(g)
-                vertex_index = g[1].index(v.id)
-                results[local_index][vertex_index] = np.abs(results[local_index][vertex_index]) * np.exp(1j*reference_angle)
+                # Add containing graphs to update list.
+                for i in containing_indices:
+                    update_list.append(i)
 
-        return results
+                # Index of local problem being used as reference.
+                reference_index = containing_indices[0]
 
-        # Keep track of changed results.
-        change_list = []
+                # Pick reference angle.
+                reference_angle = np.angle(results[reference_index][containing_graphs[0][1].index(v_id)])
 
-        # Determine signs for each neighborhood (by looking at the state of the center of the star-neighborhood).
-        for i in range(1, len(results)):
+                # Update results corresponding to this fixed reference.
+                for i, result in enumerate(results):
+                    if i is not reference_index and i in containing_indices:
+                        vertex_index = self.local_graphs[i][1].index(v_id)
+                        results[i] *= np.exp(1j*(reference_angle - np.angle(result[vertex_index])))
 
-            # All estimates corresponding to vertex i should match this sign.
-            match_angle = np.angle(results[i][self.local_graphs[i][1].index(i)])
-            change_list.append(i)
-
-            for result_index, result in enumerate(results):
-
-                # Neighborhood id's for current result and the local estimate being used to match signs.
-                id_list = self.local_graphs[result_index][1]
-
-                if i in id_list and result_index not in change_list and np.angle(result[id_list.index(i)]) != match_angle:
-                    results[result_index] *= np.exp(1j*(match_angle - np.angle(result[id_list.index(i)])))
-                    change_list.append(result_index)
-
-            # Early break if no more changes can be made.
-            if len(change_list) == len(results):
-                break
+                if len(update_list) == len(self.local_variables):
+                    break
 
         return results
 
@@ -308,6 +273,23 @@ class LocalADMM:
         # Reset "global" slack variable to zero matrix with one additional column and row than before.
         self.slack = np.zeros(shape=(self.slack.shape[0] + 1, self.slack.shape[1] + 1), dtype=np.complex)
 
+    def fix_local_problem(self, i):
+
+        self.fixed[i] = True
+
+    def unfix_local_problem(self, i):
+
+        self.fixed[i] = False
+
+    def fix_local_problems(self, problems):
+
+        for i in problems:
+            self.fix_local_problem(i)
+
+    def unfix_local_problems(self, problems):
+
+        for i in problems:
+            self.unfix_local_problem(i)
 
 def pgo_projection(X):
 

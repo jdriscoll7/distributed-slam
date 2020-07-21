@@ -1,13 +1,14 @@
 import numpy as np
 
-from solvers.admm.fixed_sdp import rotation_matrix
 from solvers.admm.local_admm import cost_function
 from solvers.sdp import pgo
+from utility.common import rotation_matrix
 from utility.graph import Vertex, Edge, Graph
 from utility.visualization import plot_pose_graph
+from utility.parsing import write_g2o
 
 
-def kite(n, d, ladder_length=3, position_sigma=0, rotation_sigma=0):
+def kite(n, d, ladder_length=3, position_sigma=0, rotation_sigma=0, save_file=""):
     """
     Creates kite graph with n vertices, as well as the kite with ladder (2n - d + 3) vertices).
 
@@ -78,6 +79,14 @@ def kite(n, d, ladder_length=3, position_sigma=0, rotation_sigma=0):
                           relative_pose=relative_pose + position_sigma * np.random.randn(*relative_pose.shape),
                           rotation=relative_rotation + rotation_sigma * np.random.randn(),
                           information_matrix=None))
+
+    # Make information matrix for each edge the identity to conform with g2o format.
+    for e in edges:
+        e.information_matrix = np.eye(3)
+
+    # Write file if needed.
+    if save_file is not "":
+        write_g2o(vertices, edges, file_name=save_file)
 
     return kite_no_handle, Graph(vertices, edges)
 
