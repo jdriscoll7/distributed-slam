@@ -18,7 +18,7 @@ def create_d_matrix(edges, n_vertices):
     Creates the D matrix used in Carlone paper (defined in (10) and just after (11)).
 
     :param edges:  list of edges, each of which contains in/out-vertex information and relative pose measurements
-    :return:
+    :return:       D matrix
     """
 
     # D matrix is composed of smaller, 2x2 sub-matrices. Form large matrix of zeros,
@@ -48,7 +48,7 @@ def create_u_matrix(edges, n_vertices):
     Creates the U matrix used in Carlone paper (defined just after (12)).
 
     :param edges:  list of edges, each of which contains in/out-vertex information and relative pose measurements
-    :return:
+    :return:       U matrix
     """
 
     # Similar to construction of d matrix - just more submatrices to emplace.
@@ -200,7 +200,7 @@ def w_from_vertices_and_edges(vertices, edges, factored=False, anchored=True):
 
     :param vertices:    list of vertices from g2o file
     :param edges:       list of edges from g2o file
-    :return:            W matrix used in SDP problem by Carlone, anchored vertex
+    :return:            W matrix used in SDP problem by Carlone
     """
 
     # Create the three inputs needed to create W matrix.
