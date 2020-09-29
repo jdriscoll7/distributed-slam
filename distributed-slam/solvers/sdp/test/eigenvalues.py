@@ -69,7 +69,7 @@ def coordinate_minimize(w, coordinates, passes=100):
 if __name__ == "__main__":
 
     # Get W matrix - dual value for the solution is 41.6.
-    w = w_from_g2o("data/dataset.g2o")
+    w = w_from_g2o("./data/dataset.g2o")
 
     pgo(w)
 

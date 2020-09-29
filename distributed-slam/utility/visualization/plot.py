@@ -1,6 +1,7 @@
 from utility.parsing import parse_g2o
 from matplotlib import pyplot as plt
 import numpy as np
+import networkx as nx
 
 
 def _set_axes(x, y, xlim=None, ylim=None):
@@ -103,49 +104,23 @@ def plot_vertices(vertices, xlim=None, ylim=None, new_figure=True, color=None, e
     _set_axes(x, y, xlim, ylim)
 
 
-def plot_pose_graph(vertices=None, edges=None, xlim=None, ylim=None, graph=None, new_figure=True, ax=None):
+def plot_pose_graph(graph):
 
-    # Optional graph argument to specify vertices and edges.
-    if graph is not None:
-        vertices = graph.vertices
-        edges = graph.edges
+    # Collect edges as tuples between vertex ids.
+    edges = [(e.out_vertex, e.in_vertex) for e in graph.edges]
 
-    # Extract x coordinates of each vertex.
-    x = [v.position[0] for v in vertices]
-    y = [v.position[1] for v in vertices]
+    # Initialize networkx graph.
+    g = nx.DiGraph()
+    g.add_edges_from(edges)
 
-    # Plot these pairs of coordinates.
-    if new_figure:
-        plt.figure()
+    # Collect positions of vertices.
+    positions = {v.id: tuple(v.position) for v in graph.vertices}
 
-    # Need to repeatedly search vertex ids of "vertices" list.
-    vertex_ids = [v.id for v in vertices]
+    # Generate labels for vertices.
+    labels = {i: "$" + str(i + 1) + "$" for i in range(len(graph.vertices))}
 
-    # Only draw edges corresponding to measurements.
-    for edge in edges:
-
-        # Find index of in and out vertices in "vertices" input list.
-        in_vertex = vertex_ids.index(edge.in_vertex)
-        out_vertex = vertex_ids.index(edge.out_vertex)
-
-        # If plot needs to be done on a certain axis, then do ax.plot rather than plt.plot.
-        if ax is None:
-            ax = plt
-
-        # Plot this edge - change color if it is in spanning tree.
-        if edge.out_vertex == edge.in_vertex - 1:
-            # line, = ax.plot([x[out_vertex], x[in_vertex]], [y[out_vertex], y[in_vertex]], 'ro-', zorder=100)
-            # line, = ax.plot([x[out_vertex], x[in_vertex]], [y[out_vertex], y[in_vertex]], 'ko-', zorder=100, markersize=16)
-            line, = ax.plot([x[out_vertex], x[in_vertex]], [y[out_vertex], y[in_vertex]], 'ko-', zorder=100, markersize=3)
-        else:
-            # line, = ax.plot([x[out_vertex], x[in_vertex]], [y[out_vertex], y[in_vertex]], 'ko-', markersize=16)
-            line, = ax.plot([x[out_vertex], x[in_vertex]], [y[out_vertex], y[in_vertex]], 'ko-', markersize=3)
-
-    # Set plotting axes.
-    if new_figure:
-        _set_axes(x, y, xlim, ylim)
-
-    return line
+    # Draw graph.
+    nx.draw_networkx(g, pos=positions, labels=labels, with_labels=True, arrows=True, arrowsize=18)
 
 
 def draw_plots():

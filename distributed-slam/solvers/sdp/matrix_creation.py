@@ -173,6 +173,7 @@ def create_w_matrix(a, d, u, factored=False):
 
     return X
 
+
 def w_from_g2o(path):
     """
     Creates the W matrix used in Carlone paper from g2o file.

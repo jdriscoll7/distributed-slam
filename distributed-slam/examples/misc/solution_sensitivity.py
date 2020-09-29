@@ -190,7 +190,7 @@ def plot_vertex_distances(data, solution):
 if __name__ == "__main__":
 
     # Path for generated file.
-    FILE_PATH = "/home/joe/repositories/distributed-slam/datasets/input_INTEL_g2o.g2o"
+    FILE_PATH = "/input_INTEL_g2o.g2o"
 
     # Number of vertices in generated data and starting point for test.
     # N_VERTICES = 10
