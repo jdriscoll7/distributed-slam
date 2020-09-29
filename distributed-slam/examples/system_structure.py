@@ -14,9 +14,6 @@ from utility.visualization import plot_pose_graph
 
 def block_reorder(w):
 
-    # Copy w matrix.
-    new_w = np.copy(w)
-
     # Form permuation vector.
     upper_indices, lower_indices = np.split(np.arange(w.shape[0]), [w.shape[0] // 2])
     permutation_vector = np.zeros(shape=(1, w.shape[0]), dtype=np.int)
