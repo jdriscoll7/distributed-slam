@@ -1,9 +1,7 @@
 from solvers.sdp import w_from_graph
-from utility.data_generation import create_random_dataset
 from utility.graph import Graph
 from utility.parsing import parse_g2o
 from utility.common import cost_function
-from solvers.sdp.matrix_creation import complex_reduce_matrix
 
 import matplotlib.pyplot as plt
 import numpy as np
