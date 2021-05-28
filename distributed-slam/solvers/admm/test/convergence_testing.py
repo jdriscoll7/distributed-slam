@@ -1,13 +1,12 @@
 import numpy as np
 
-from examples.kite_test import kite
+from examples.old.kite_test import kite
 from solvers.admm.local_admm import LocalADMM
 from utility.common import cost_function
 from utility.graph import Graph
 from utility.parsing.g2o import write_g2o, parse_g2o
 from utility.data_generation.planning import serial_graph_plan
 from solvers.sdp import pgo
-from utility.visualization import plot_pose_graph
 
 
 def incremental_graphs(pgo_file, directory='./serial_graphs/'):

@@ -204,7 +204,7 @@ def _pgo(w, graph):
     return graph, dual_solution
 
 
-def pgo(graph, file_name=""):
+def pgo(graph, file_name=None):
     """
     Wrapper for main pgo function. Can take file name or W matrix directly.
 

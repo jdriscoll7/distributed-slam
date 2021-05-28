@@ -14,13 +14,14 @@ def block_reorder(w):
 
     # Form permuation vector.
     upper_indices, lower_indices = np.split(np.arange(w.shape[0]), [w.shape[0] // 2])
-    permutation_vector = np.zeros(shape=(1, w.shape[0]), dtype=np.int)
-    permutation_vector[:, 1::2] = upper_indices
-    permutation_vector[:, ::2] = lower_indices
+    permutation_vector = [0]*w.shape[0]
+    permutation_vector[1::2] = upper_indices
+    permutation_vector[::2] = lower_indices
 
-    # If even number, then problem is unanchored and the permutation vector needs to be shifted.
-    if permutation_vector.shape[1] % 2 == 0:
-        permutation_vector = np.roll(permutation_vector, -1)
+    # If even number, then problem is unanchored. This means every pair of elements in the permutation vector need to be
+    # swapped - copied from https://stackoverflow.com/questions/32835163/python-invert-every-two-elements-of-list.
+    if len(permutation_vector) % 2 == 0:
+        permutation_vector = list(sum(zip(permutation_vector[1::2], permutation_vector[::2]), ()))
 
     # Generate permutation matrix from permutation vector.
     permutation_matrix = np.eye(w.shape[0])
@@ -41,7 +42,7 @@ def plot_sparsity_pattern(a):
 if __name__ == "__main__":
 
     # Load graph from file.
-    graph_path = "../../datasets/custom_five_node.g2o"
+    graph_path = "../../../datasets/custom_five_node.g2o"
     graph = Graph(*parse_g2o(graph_path))
 
     # Create W matrix for graph.

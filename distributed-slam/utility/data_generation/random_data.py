@@ -24,23 +24,24 @@ def _create_edge_list(edge_ids, translation_measurements, rotation_measurements)
 def _create_vertex_list(truth_states):
 
     # List comprehension to turn input into list of Vertex objects.
-    return [Vertex(i, truth_states[i]) for i in range(len(truth_states))]
+    return [Vertex(i, position=truth_states[i][0:2], rotation=truth_states[i][2]) for i in range(len(truth_states))]
 
 
-def create_random_dataset(translation_variance, rotation_variance, n_poses, file_name=None):
+def create_random_dataset(translation_variance, rotation_variance, n_poses, edge_probability=0.1, file_name=None):
 
     # Generate truth poses and rotations.
     truth_coordinates = [np.random.uniform(0, 10, (2, 1)) for _ in range(n_poses)]
     truth_rotations = [_rotation_matrix(np.random.uniform(-np.pi, np.pi)) for i in range(n_poses)]
 
-    # Create spanning path that traverses vertices in order.
+    # Create spanning cycle that traverses vertices in order.
     edge_ids = [(i - 1, i) for i in range(1, n_poses)]
+    edge_ids.append((n_poses - 1, 0))
 
     # Randomly add in cross edges. Exclude already added edges.
     # Sample uniform RV to determine if edge should be added.
     for i in range(n_poses):
         for j in range(n_poses):
-            if abs(i - j) > 1 and np.random.uniform(0, 1) > 0.9:
+            if abs(i - j) > 1 and np.random.uniform(0, 1) > 1 - edge_probability:
                 edge_ids.append((i, j))
 
     # Generate relative pose measurements based on model.

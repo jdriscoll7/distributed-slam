@@ -106,10 +106,10 @@ def generate_sdpt3_xml(sedumi_mat_file):
     xml = ('<document>'
            '<category>sdp</category>'
            '<solver>sdpt3</solver>'
+           '<email>jdriscoll7@gatech.edu</email>'
            '<inputType>MATLAB_BINARY</inputType>'
            '<client>Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.70 Safari/537.36@128.61.84.87</client>'
            '<priority>long</priority>'
-           '<email></email>'
            '<dat><![CDATA[]]></dat>\n\n'
            '<mat><base64>\n')
     xml += mat_data

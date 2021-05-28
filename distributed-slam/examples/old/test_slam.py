@@ -12,7 +12,7 @@ from matplotlib import pyplot as plt
 
 # Some simple demo parameters.
 #INPUT_FILE = "../solvers/sdp/random_test.g2o"
-INPUT_FILE = "/home/joe/repositories/distributed-slam/datasets/input_INTEL_g2o.g2o"
+INPUT_FILE = "/input_INTEL_g2o.g2o"
 OUTPUT_FILE = "misc/result.g2o"
 MAX_ITERATIONS = 100
 LOGGING = True

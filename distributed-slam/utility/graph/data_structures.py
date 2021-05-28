@@ -97,6 +97,12 @@ class Graph:
             if v.id == id:
                 return v
 
+    def get_edge(self, in_vertex, out_vertex):
+
+        for e in self.edges:
+            if e.in_vertex == in_vertex and e.out_vertex == out_vertex:
+                return e
+
     def set_state(self, vertex_id, position, rotation):
 
         # Set depending on the type of position (complex number or vector).
@@ -162,6 +168,9 @@ class Graph:
         for edge in edge_list:
             self.edges.remove(edge)
 
+    def add_edge(self, edge):
+        self.edges.append(edge)
+
     def partition(self, partition_groups=None):
 
         # Create a copy of graph to remove edges from (prevent unexpected mutations to edges).
@@ -193,6 +202,25 @@ class Graph:
                 break
 
         return graphs
+
+    def neighborhood(self, i):
+        """
+        Returns all vertices in the neighborhood of vertices in i.
+
+        :param i: List of vertex ids to find neighborhood of.
+        :return:  List of vertices that comprise neighborhood of vertex i.
+        """
+
+        vertex_list = []
+
+        # Find all vertices with edge connected to vertex i.
+        for e in self.edges:
+            if e.in_vertex in i and e.out_vertex not in i:
+                vertex_list.append(self.get_vertex(e.out_vertex))
+            elif e.out_vertex in i and e.in_vertex not in i:
+                vertex_list.append(self.get_vertex(e.in_vertex))
+
+        return vertex_list
 
 
 def reduce_ids(vertices, edges):

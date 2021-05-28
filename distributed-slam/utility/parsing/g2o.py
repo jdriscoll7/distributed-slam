@@ -81,7 +81,7 @@ def write_g2o(vertices, edges, file_name, group_ids=None):
     for vertex in vertices:
 
         # Convert state into a string with space delimiters.
-        state_string = " ".join(map(str, [x for x in np.hstack((vertex.position, vertex.rotation))]))
+        state_string = " ".join(map(str, [x[0] for x in np.vstack((vertex.position, vertex.rotation))]))
 
         # Write line to file.
         file.write("VERTEX_SE2 " + str(vertex.id) + " " + state_string)
@@ -96,7 +96,7 @@ def write_g2o(vertices, edges, file_name, group_ids=None):
     for edge in edges:
 
         # Get relative pose as string.
-        relative_pose = " ".join(map(str, edge.relative_pose))
+        relative_pose = " ".join(map(str, [edge.relative_pose[0][0], edge.relative_pose[1][0]]))
 
         # Create tokens before info matrix.
         edge_string = " ".join([str(edge.out_vertex), str(edge.in_vertex), relative_pose, str(edge.rotation)])
