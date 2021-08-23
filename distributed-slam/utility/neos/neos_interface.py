@@ -3,19 +3,33 @@ import xmlrpc.client as xmlrpclib
 import time
 import re
 import numpy as np
-from scipy.io import savemat
+from scipy.io import savemat, loadmat
+import os
+import subprocess
 
 
 neos = xmlrpclib.ServerProxy('https://neos-server.org:3333')
 
 
-def neos_sdpt3_solve(input_file, output_file):
+def neos_sdpt3_solve(input_file, output_file, local=True):
     """
     Sends sdpt3 job to NEOS and returns results.
 
+    :param output_file:
+    :param local:
     :param input_file:  Path to mat file with sedumi solver format.
     :return:            Results of NEOS job.
     """
+
+    if local:
+        command_string = ("matlab -nojvm -nodesktop -nosplash -wait -r \"install_sdpt3;" 
+                          "[blk,At,C,b] = read_sedumi(\'sedumi_problem.mat\');"
+                          "[obj,X,optimizer,Z] = sqlp(blk,At,C,b);"
+                          "save(\'" + output_file +
+                          "\', \'optimizer\');" 
+                          "exit;\";")
+        subprocess.call(command_string, cwd=os.getcwd())
+        return loadmat(output_file)["optimizer"]
 
     # Generate xml for job.
     xml = generate_sdpt3_xml(input_file)
@@ -123,6 +137,6 @@ def generate_sdpt3_xml(sedumi_mat_file):
 
 if __name__ == "__main__":
 
-    results = neos_sdpt3_solve('test.mat')
+    results = neos_sdpt3_solve('test.mat', 'results.mat', False)
 
     print(results)

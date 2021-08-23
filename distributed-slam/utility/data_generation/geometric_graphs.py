@@ -27,44 +27,50 @@ def _create_vertex_list(truth_states):
     return [Vertex(i, position=truth_states[i][0:2], rotation=truth_states[i][2]) for i in range(len(truth_states))]
 
 
-def create_measurement(graph, i, j, translation_variance, rotation_variance):
+def geometric_graph_edges(vertex_coordinates, radius):
 
-    # Truth states.
-    truth_coordinates = [np.reshape(graph.get_vertex(i).position, (2, 1)), np.reshape(graph.get_vertex(j).position, (2, 1))]
-    truth_rotations = [_rotation_matrix(graph.get_vertex(i).rotation).reshape((2, 2)), _rotation_matrix(graph.get_vertex(j).rotation).reshape((2, 2))]
+    # Keep list of edges included in geometric graph.
+    edge_set = []
 
-    # Generate relative pose measurements based on model.
-    translation_measurement = truth_rotations[0].T @ (truth_coordinates[1] - truth_coordinates[0]) \
-                              + np.random.multivariate_normal(np.zeros((2,)), translation_variance * np.eye(2)).reshape(-1, 1)
+    # Find largest distance between any two nodes.
+    closest_vertex_distance = [[np.inf, np.inf] for _ in range(len(vertex_coordinates))]
+    for i, vertex_1 in enumerate(vertex_coordinates):
+        for j, vertex_2 in enumerate(vertex_coordinates):
+            if i != j:
+                distance = np.linalg.norm(vertex_1 - vertex_2)
 
-    # Generate relative rotation measurements based on model.
-    rotation_measurement = truth_rotations[0].T @ truth_rotations[1] @ _rotation_matrix(np.random.normal(0, rotation_variance))
+                if distance < closest_vertex_distance[i][0]:
+                    closest_vertex_distance[i][1] = closest_vertex_distance[i][0]
+                    closest_vertex_distance[i][0] = distance
+                elif distance < closest_vertex_distance[i][1]:
+                    closest_vertex_distance[i][1] = distance
 
-    # Reshape translation measurement to be safe.
-    translation_measurement = np.reshape(translation_measurement, (2, 1))
+    if max([max(x) for x in closest_vertex_distance]) > radius:
+        radius = max([max(x) for x in closest_vertex_distance]) + 0.1
+        print("Given radius too small. Radius expanded to %f" % (radius))
 
-    # Turn everything into vertices and edges.
-    edge = _create_edge_list([(i, j)], [translation_measurement], [rotation_measurement])[0]
+    for i, vertex_1 in enumerate(vertex_coordinates):
+        for j, vertex_2 in enumerate(vertex_coordinates):
+            # Keep counter to alternate ingoing/outgoing edges.
+            edge_counter = 0
+            if i < j and np.linalg.norm(vertex_1 - vertex_2) <= radius:
+                if edge_counter % 2 == 0:
+                    edge_set.append((i, j))
+                else:
+                    edge_set.append((j, i))
+                edge_counter += 1
 
-    return edge
+    return edge_set
 
 
-def create_random_dataset(translation_variance, rotation_variance, n_poses, edge_probability=0.1, file_name=None, box=[0, 10, 0, 10]):
+def create_geometric_dataset(translation_variance, rotation_variance, n_poses, box=(0, 10, 0, 10), radius=1, file_name=None):
 
     # Generate truth poses and rotations.
     truth_coordinates = [np.asarray([np.random.uniform(box[0], box[1]), np.random.uniform(box[2], box[3])]).reshape((2, 1)) for _ in range(n_poses)]
     truth_rotations = [_rotation_matrix(np.random.uniform(-np.pi, np.pi)) for i in range(n_poses)]
 
     # Create spanning cycle that traverses vertices in order.
-    edge_ids = [(i - 1, i) for i in range(1, n_poses)]
-    #edge_ids.append((n_poses - 1, 0))
-
-    # Randomly add in cross edges. Exclude already added edges.
-    # Sample uniform RV to determine if edge should be added.
-    for i in range(n_poses):
-        for j in range(n_poses):
-            if abs(i - j) > 1 and np.random.uniform(0, 1) > 1 - edge_probability:
-                edge_ids.append((i, j))
+    edge_ids = geometric_graph_edges(vertex_coordinates=truth_coordinates, radius=radius)
 
     # Generate relative pose measurements based on model.
     translation_measurements = [truth_rotations[edge[0]].T @ (truth_coordinates[edge[1]] - truth_coordinates[edge[0]])
@@ -90,27 +96,6 @@ def create_random_dataset(translation_variance, rotation_variance, n_poses, edge
     return vertices, edges
 
 
-def create_random_grouped_dataset(translation_variance, rotation_variance, n_poses, file_name):
-
-    vertex_lists, edge_lists = [], []
-
-    for n in n_poses:
-
-        # Create random dataset for one group.
-        v, e = create_random_dataset(translation_variance, rotation_variance, n)
-
-        # Append created graph to lists.
-        vertex_lists.append(v)
-        edge_lists.append(e)
-
-    multigraph = group_datasets(vertex_lists, edge_lists)
-    vertices, edges, group_ids = multigraph.get_full_graph()
-
-    write_g2o(vertices, edges, file_name, group_ids=group_ids)
-
-    return multigraph
-
-
 if __name__ == "__main__":
 
-    create_random_dataset(2, 3, 10, 'testttttttttttt.g2o')
+    create_geometric_dataset(2, 3, 10, 'test.g2o')

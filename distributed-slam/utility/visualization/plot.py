@@ -104,7 +104,43 @@ def plot_vertices(vertices, xlim=None, ylim=None, new_figure=True, color=None, e
     _set_axes(x, y, xlim, ylim)
 
 
-def plot_pose_graph(graph):
+def plot_pose_graph(graph, colors=None, color=None, offset=0):
+
+    # Collect edges as tuples between vertex ids.
+    edges = [(e.out_vertex + offset, e.in_vertex + offset) for e in graph.edges]
+
+    # Initialize networkx graph.
+    g = nx.DiGraph()
+    g.add_edges_from(edges)
+
+    # Collect positions of vertices.
+    positions = {v.id + offset: tuple(v.position) for v in graph.vertices}
+
+    # Generate labels for vertices.
+    labels = {v.id + offset: "$" + str(v.id + 1 + offset) + "$" for v in graph.vertices}
+
+    # Generate colors if needed.
+    if colors is not None:
+        color_list = [colors[v - offset] for v in g.nodes()]
+
+    # Draw graph.
+    if colors is not None:
+        cmap = plt.get_cmap('plasma')
+
+        nx.draw_networkx(g, cmap=cmap, node_color=color_list, pos=positions, labels=labels, with_labels=True, arrows=True, arrowsize=18, font_size=10)
+
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=min(color_list), vmax=max(color_list)))
+        sm._A = []
+        cb = plt.colorbar(sm, label="Magnitude in Position Change")
+        cb.ax.set_yticklabels(["{:.3f}".format(i) for i in cb.get_ticks()])
+    else:
+        if color is None:
+            nx.draw_networkx(g, pos=positions, labels=labels, with_labels=True, arrows=True, arrowsize=18, font_size=10)
+        else:
+            nx.draw_networkx(g, pos=positions, node_color=color, labels=labels, with_labels=True, arrows=True, arrowsize=18, font_size=10)
+
+
+def plot_line_graph(graph):
 
     # Collect edges as tuples between vertex ids.
     edges = [(e.out_vertex, e.in_vertex) for e in graph.edges]
@@ -113,14 +149,21 @@ def plot_pose_graph(graph):
     g = nx.DiGraph()
     g.add_edges_from(edges)
 
-    # Collect positions of vertices.
-    positions = {v.id: tuple(v.position) for v in graph.vertices}
+    # Form line graph.
+    g = nx.line_graph(g.to_undirected())
 
-    # Generate labels for vertices.
-    labels = {i: "$" + str(i + 1) + "$" for i in range(len(graph.vertices))}
+    # Collect positions of vertices.
+    positions = {}
+    for v_1 in graph.vertices:
+        for v_2 in graph.vertices:
+            positions[(v_1.id, v_2.id)] = tuple(0.5 * (v_1.position + v_2.position))
+
+    labels = {}
+    for e in edges:
+        labels[e] = "$" + str(e[1] + 1) + "-" + str(e[0] + 1) + "$"
 
     # Draw graph.
-    nx.draw_networkx(g, pos=positions, labels=labels, with_labels=True, arrows=True, arrowsize=18)
+    nx.draw_networkx(g, pos=positions, labels=labels, with_labels=True, arrows=True, arrowsize=18, font_size=5)
 
 
 def draw_plots():

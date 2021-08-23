@@ -71,7 +71,7 @@ def parse_g2o(path, groups=False):
 def write_g2o(vertices, edges, file_name, group_ids=None):
 
     # Make sure directory of file name exists - if not, create it.
-    if dirname(file_name) is not '':
+    if dirname(file_name) != '':
         makedirs(dirname(file_name), exist_ok=True)
 
     # Open data file.
@@ -81,7 +81,7 @@ def write_g2o(vertices, edges, file_name, group_ids=None):
     for vertex in vertices:
 
         # Convert state into a string with space delimiters.
-        state_string = " ".join(map(str, [x[0] for x in np.vstack((vertex.position, vertex.rotation))]))
+        state_string = " ".join(map(str, [x[0] for x in np.vstack((np.reshape(vertex.position, (2, 1)), vertex.rotation))]))
 
         # Write line to file.
         file.write("VERTEX_SE2 " + str(vertex.id) + " " + state_string)
@@ -94,6 +94,8 @@ def write_g2o(vertices, edges, file_name, group_ids=None):
         file.write("\n")
 
     for edge in edges:
+
+        edge.relative_pose = np.reshape(edge.relative_pose, (2, 1))
 
         # Get relative pose as string.
         relative_pose = " ".join(map(str, [edge.relative_pose[0][0], edge.relative_pose[1][0]]))

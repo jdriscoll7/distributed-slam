@@ -88,10 +88,11 @@ def solve_dual_program(w):
     return multipliers.value
 
 
-def solve_dual_neos(w):
+def solve_dual_neos(w, local=True):
     """
     Solves the large SDP in Carlone paper with NEOS server.
 
+    :param local:
     :param w:   W matrix used in optimization problem.
     :return:    Optimizer of problem.
     """
@@ -100,7 +101,7 @@ def solve_dual_neos(w):
     w_to_sedumi(w, "sedumi_problem.mat")
 
     # Send problem to NEOS and return solution.
-    return neos_sdpt3_solve(input_file="sedumi_problem.mat", output_file="solution.mat")
+    return neos_sdpt3_solve(input_file="sedumi_problem.mat", output_file="solution.mat", local=local)
 
 
 def solve_suboptimal_program(basis):
@@ -130,21 +131,27 @@ def solve_suboptimal_program(basis):
     return z.value
 
 
-def _pgo(w, graph):
+def _pgo(w, graph, local=True):
     """
     Implementation of algorithm 1 in Carlone paper - performs PGO given
     a W matrix, which is described in detail in paper. Code also exists
     in repository for creating W matrix from things like .g2o files.
 
+    :param local:
     :param w:               large matrix used and described in Carlone paper
     :param graph:           input graph - used to format output into graph object
     :return:                solution and details
     """
 
+    if local is not None:
+        print("Solving locally with sdpt3.")
+    else:
+        print("Solving with NEOS.")
+
     # Solve SDP with NEOS.
-    print("Solving dual problem with NEOS.")
     start = time.time()
-    dual_solution = solve_dual_neos(w)
+
+    dual_solution = solve_dual_neos(w, local)
 
     # Print resulting time elapsed.
     print("Dual problem completed. Time elapsed: %f seconds.\n" % (time.time() - start))
@@ -204,10 +211,11 @@ def _pgo(w, graph):
     return graph, dual_solution
 
 
-def pgo(graph, file_name=None):
+def pgo(graph, file_name=None, local=True):
     """
     Wrapper for main pgo function. Can take file name or W matrix directly.
 
+    :param local:
     :param graph:       Specify problem with graph object.
     :param file_name:   Optional path to g2o file.
     :return:            Solution to PGO problem found with SDP.
@@ -216,7 +224,7 @@ def pgo(graph, file_name=None):
     if file_name is not None:
         graph = Graph(*parse_g2o(path=file_name))
 
-    return _pgo(w_from_vertices_and_edges(graph.vertices, graph.edges), graph)
+    return _pgo(w_from_vertices_and_edges(graph.vertices, graph.edges), graph, local=local)
 
 
 if __name__ == "__main__":

@@ -2,6 +2,11 @@ import numpy as np
 import copy
 
 
+def _rotation_matrix(theta):
+
+    return np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+
+
 class Vertex:
 
     def __init__(self, id, position, rotation):
@@ -154,11 +159,16 @@ class Graph:
         vertices = [copy.copy(v) for v in self.vertices if v.id in vertex_ids]
 
         if reduce:
-            # Store vertex ids in sorted order and reduct vertex ids.
+            # Store vertex ids in sorted order and reduce vertex ids.
             vertex_ids = [v.id for v in vertices]
             vertex_ids.sort()
+
+            id_dictionary = {}
+            for i, v_id in enumerate(vertex_ids):
+                id_dictionary[v_id] = i
+
             vertices, edges = reduce_ids(vertices, edges)
-            return Graph(vertices, edges), vertex_ids
+            return Graph(vertices, edges), id_dictionary
 
         else:
             return Graph(vertices, edges)
@@ -221,6 +231,37 @@ class Graph:
                 vertex_list.append(self.get_vertex(e.in_vertex))
 
         return vertex_list
+
+    def copy(self):
+        return Graph(self.get_vertices(), self.get_edges())
+
+    def rotate(self, angle):
+
+        for i, v in enumerate(self.vertices):
+
+            # Extract position and location of vertex.
+            position = v.position.reshape((2, 1))
+            rotation = v.rotation
+
+            # Compute new rotation and position.
+            new_position = (_rotation_matrix(angle) @ position).reshape((2, ))
+            new_rotation = rotation - angle
+
+            # Set values.
+            self.vertices[i].position = new_position
+            self.vertices[i].rotation = new_rotation
+
+    def map_vertex_ids(self, new_ids):
+
+        # Modify vertices first - reorder and then reset ids.
+        self.vertices = [self.vertices[i] for i in new_ids]
+        for i, v in enumerate(self.vertices):
+            self.vertices[i].id = i
+
+        # Modify edges.
+        for i, e in enumerate(self.edges):
+            self.edges[i].in_vertex = new_ids.index(e.in_vertex)
+            self.edges[i].out_vertex = new_ids.index(e.out_vertex)
 
 
 def reduce_ids(vertices, edges):
