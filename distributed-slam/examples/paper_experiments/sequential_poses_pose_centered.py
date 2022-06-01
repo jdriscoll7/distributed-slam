@@ -1,198 +1,224 @@
-import copy
-import random
+import networkx as nx
 
 from helper_functions import *
-import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-from os import makedirs
-from os.path import dirname
-from random import shuffle
-import pickle
-
-from solvers.sdp import pgo
-from utility.data_generation import serial_graph_plan
-from utility.data_generation import create_random_dataset
-from utility.data_generation.geometric_graphs import create_geometric_dataset
-from utility.graph import Graph, Edge
-from utility.visualization import plot_complex_list, draw_plots, plot_pose_graph
-from utility.parsing import parse_g2o
-from utility.data_generation import random_data
-import matplotlib.gridspec as gridspec
-from solvers.admm.local_admm import cost_function
+from matplotlib.animation import PillowWriter
 
 
-def form_graph_sequence(graph, pose_id, step=1):
+def difference_graph_with_colors(graph_1, graph_2, colors):
 
-    # Form list of vertices in order of distance from fixed pose.
-    distance_dictionary = {}
+    # Find plotting bounds to nicely fit frames.
+    left = 0
+    right = 0
+    bottom = 0
+    top = 0
 
-    for v in graph.vertices:
-        distance_dictionary[v.id] = np.linalg.norm(graph.get_vertex(pose_id).position - v.position)
+    for graph in [graph_1, graph_2]:
+        # Extract maximal coordinates.
+        x_min = np.min(np.real(graph.get_complex_state()))
+        x_max = np.max(np.real(graph.get_complex_state()))
+        y_min = np.min(np.imag(graph.get_complex_state()))
+        y_max = np.max(np.imag(graph.get_complex_state()))
 
-    sorted_vertex_list = sorted(distance_dictionary, key=distance_dictionary.get)
+        # Keep track of minimal/maximal coordinates.
+        left = left if left < x_min else x_min
+        right = right if right > x_max else x_max
+        bottom = bottom if bottom < y_min else y_min
+        top = top if top > y_max else y_max
 
-    # List of graphs to run optimization on.
-    graph_list = []
-    vertex_id_list = []
+    left = left - 0.1 * np.abs(left) - 1
+    right = right + 0.1 * np.abs(right) + 1
+    top = top + 0.1 * np.abs(top) + 1
+    bottom = bottom - 0.1 * np.abs(bottom) - 1
 
-    for i in range(1, len(sorted_vertex_list) // step):
-        subgraph, vertex_ids = graph.subgraph(i=sorted_vertex_list[:i*step], reduce=True)
-        graph_list.append(subgraph)
-        vertex_id_list.append(vertex_ids)
+    # Draw pose graph with heat map.
+    plot_pose_graph(graph=graph_2.subgraph([v.id for v in graph_1.vertices]), colors=colors)
 
-    return graph_list, vertex_id_list, sorted_vertex_list
+    # Find newly added vertices.
+    small_graph_ids = [v.id for v in graph_1.vertices]
+    new_vertex_ids = [v.id for v in graph_2.vertices if v.id not in small_graph_ids]
+    new_vertex_pos = {v.id: tuple(v.position) for v in graph_2.vertices if v.id not in small_graph_ids}
+
+    # Find edges in larger graph that are not in smaller graph.
+    smaller_graph_edges = [(e.in_vertex, e.out_vertex) for e in graph_1.edges]
+    added_edges = [(e.in_vertex, e.out_vertex) for e in graph_2.edges if
+                   (e.in_vertex, e.out_vertex) not in smaller_graph_edges]
+
+    vertex_neighborhood = [v.id for v in graph_2.subgraph(new_vertex_ids, neighborhood=True).vertices]
+
+    # Initialize networkx graph.
+    g = nx.DiGraph()
+    g.add_edges_from(added_edges)
+    g.add_nodes_from(vertex_neighborhood)
+
+    node_positions = {v.id: tuple(v.position) for v in
+                      graph_2.subgraph(new_vertex_ids, neighborhood=True).vertices}
+
+    nx.draw_networkx_edges(g, pos=node_positions, arrows=True, arrowsize=18)
+    nx.draw_networkx(g.subgraph(new_vertex_ids),
+                     node_color='green',
+                     pos=new_vertex_pos,
+                     labels=dict((v_id, "$" + str(v_id + 1) + "$") for v_id in new_vertex_ids),
+                     with_labels=True,
+                     arrows=True,
+                     arrowsize=18,
+                     font_size=10,
+                     node_size=400)
+
+    plt.gca().set_xlim(left=left, right=right)
+    plt.gca().set_ylim(bottom=bottom, top=top)
 
 
-def sequential_fixed_pose(file_path, vertex_id, step=1):
+def graph_changes(graph_1, graph_2, reference_angle, focus_poses=None, final_graph=None):
 
-    # Parse data set twice - one contains one more edge than the other.
-    main_graph = Graph(*parse_g2o(file_path))
-    n_vertices = len(main_graph.vertices)
+    # Find edges in graph 2 that are not in graph 1.
+    graph_1_edge_tuples = [(e.in_vertex, e.out_vertex) for e in graph_1.edges]
+    added_edges = [e for e in graph_2.edges if (e.in_vertex, e.out_vertex) not in graph_1_edge_tuples]
 
-    # Solve for large graph and print cost of solution.
-    main_solution, large_dual = pgo(main_graph)
-    print("Cost of large solution: " + str(cost_function(main_solution)))
+    # Find distance of all poses from the critical edges.
+    distances = graphical_distances(graph=graph_2, edges=added_edges)
 
-    # Keep track of magnitude changes based on distance.
-    change_magnitudes = {}
-    rotation_changes = {}
+    # Print costs of each solution.
+    print("Cost of graph 1 solution: " + str(cost_function(graph_1)))
+    print("Cost of graph 2 solution: " + str(cost_function(graph_2)))
 
-    # Create list of graphs to perform optimization on.
-    graph_list, vertex_id_list, vertex_order = form_graph_sequence(graph=main_graph, pose_id=vertex_id, step=step)
+    # Store magnitude of changes in dictionary with vertex id as key.
+    position_changes = {}
 
-    # Loop through all edges in graph, removing just that edge from original graph and resolving.
-    for i, graph in enumerate(graph_list[1:]):
+    # Compute angle between first and second vertex in first graph to align.
+    graph_1_angle = np.angle(graph_1.vertices[1].position[0] + 1j * graph_1.vertices[1].position[1])
+    graph_2_angle = np.angle(graph_2.vertices[1].position[0] + 1j * graph_2.vertices[1].position[1])
+    # graph_1.rotate(reference_angle - graph_1_angle)
+    # graph_2.rotate(reference_angle - graph_2_angle)
 
-        changed_vertex_id = vertex_id_list[i + 1][vertex_id]
-        added_vertex_id = vertex_id_list[i + 1][vertex_order[i + 1]]
+    # Find the magnitude of change for each pose in first graph.
+    position_change = 0
+    solution_distance = 0
+    for i, v in enumerate(graph_1.vertices):
 
-        # Find edges attached to focused vertex.
-        edge_neighborhood = [e for e in graph.edges if e.in_vertex == changed_vertex_id or e.out_vertex == changed_vertex_id]
+        if v.id in focus_poses:
 
-        # Find distance of target pose to measurement.
-        pose_distance = graphical_distances(graph=graph, edges=edge_neighborhood)[added_vertex_id]
+            position_change += np.linalg.norm(v.position - graph_2.get_vertex(v.id).position)
+            solution_distance += np.linalg.norm(v.position - final_graph.get_vertex(v.id).position)
 
-        # Solve for new graph.
-        solution, dual = pgo(graph)
+            print("Position change for vertex %d (distance %d): %f ([%f, %f] -> [%f, %f])" % (v.id, distances[v.id], position_change, v.position[0], v.position[1], graph_2.vertices[i].position[0], graph_2.vertices[i].position[1]))
 
-        solution_angle = np.angle(solution.vertices[1].position[0] + 1j * solution.vertices[1].position[1])
-        combined_angle = np.angle(main_solution.vertices[1].position[0] + 1j * main_solution.vertices[1].position[1])
-        solution.rotate(combined_angle - solution_angle)
+        else:
 
-        plt.figure()
-        plot_pose_graph(graph=solution)
+            position_change += 0
+            solution_distance += 0
 
-        # Print costs of new solution.
-        print("Cost of perturbed solution %d: %f" % (i, cost_function(solution)))
-
-        # Find the magnitude of change for selected vertex.
-        target_vertex = solution.get_vertex(changed_vertex_id)
-
-        position_change = np.linalg.norm(target_vertex.position - main_solution.get_vertex(changed_vertex_id).position)
-        rotation_change = np.mod(np.abs(target_vertex.rotation - main_solution.get_vertex(changed_vertex_id).rotation), np.pi)
-
-        # Record the magnitude of change for target pose for removed edge.
-        change_magnitudes.setdefault(pose_distance, []).append(position_change)
-        rotation_changes.setdefault(pose_distance, []).append(rotation_change)
-        print("Distance between edge and pose: " + str(pose_distance))
-        print("Position change caused by edge removal: " + str(position_change))
-        print("Rotation change caused by edge removal: " + str(rotation_change))
+    for i, v in enumerate(graph_1.vertices):
+        if v.id in focus_poses:
+            position_changes[v.id] = position_change
+        else:
+            position_changes[v.id] = 0
 
     # Create x and y data points for distance vs. magnitude change graph.
-    position_x_data = []
-    rotation_x_data = []
-    average_x_data = []
+    x_data = []
     position_data = []
-    rotation_data = []
-    average_data = []
-    average_log_data = []
-    average_rotation_data = []
 
-    for key in change_magnitudes:
-        average_data.append(np.mean(change_magnitudes[key]))
-        average_log_data.append(np.mean(np.log10(change_magnitudes[key])))
-        average_rotation_data.append(np.mean(rotation_changes[key]))
-        average_x_data.append(key)
-        for magnitude in change_magnitudes[key]:
-            position_x_data.append(key)
-            position_data.append(magnitude)
-        for rotation_magnitude in rotation_changes[key]:
-            rotation_x_data.append(key)
-            rotation_data.append(rotation_magnitude)
+    distance_change_dictionary = {}
 
-    # Save data.
-    with open("plot_data.pickle", "wb") as f:
-        pickle.dump([position_x_data, rotation_x_data, average_x_data, position_data, rotation_data, average_data, average_rotation_data], f)
+    for key in position_changes:
+        x_data.append(distances[key])
+        position_data.append(position_changes[key])
+        distance_change_dictionary.setdefault(distances[key], []).append(position_changes[key])
 
     plt.figure()
-    plt.scatter(position_x_data, position_data)
-    plt.title("Magnitude of Change vs. Distance")
-    plt.xlabel("Distance from Pose to Added Edge")
-    plt.ylabel("Magnitude of Change in Pose")
+    difference_graph_with_colors(graph_1, graph_2, colors=position_changes)
+    # draw_plots()
+
+    return graph_1, solution_distance
+
+
+def real_data_run():
+
+    graph = Graph(*parse_g2o("datasets/input_INTEL_g2o.g2o"))
+    # graph = Graph(*parse_g2o("datasets/CSAIL_P.g2o"))
+
+    graph_list = form_graph_sequence(graph, 0, step=20, order="id")
+
+    start_point = 15
+    n_graphs = 10
+
+    solution_history = []
+    changes_history = []
+
+    reference_angle = np.angle(
+        graph_list[start_point].vertices[1].position[0] + 1j * graph_list[start_point].vertices[1].position[1])
+    solved_graphs = []
+
+    # First solve all graphs.
+    for i, g in enumerate(graph_list[start_point:(1 + start_point + n_graphs)]):
+        solution, unused = pgo(g)
+        solved_graphs.append(solution)
+
+    last_graph = solved_graphs[0]
+
+    for i, g in enumerate(graph_list[(1 + start_point):(1 + start_point + n_graphs)]):
+        solution, change = graph_changes(graph_1=last_graph, graph_2=solved_graphs[i + 1],
+                                         reference_angle=reference_angle,
+                                         focus_poses=list(range(10, 20)),
+                                         final_graph=solved_graphs[-2])
+        solution_history.append(solution)
+        changes_history.append(change)
+        last_graph = solved_graphs[i]
 
     plt.figure()
-    plt.scatter(position_x_data, np.log10(position_data))
-    plt.title("Log-Magnitude of Change vs. Distance")
-    plt.xlabel("Distance from Pose to Added Edge")
-    plt.ylabel("Magnitude of Change in Pose")
+    plt.plot(changes_history)
+    plt.title("Distance from Block to Solution vs. Graph Time")
+    plt.xlabel("Time (Number of Pose-Blocks added)")
+    plt.ylabel("Change in Solution of Selected Block Pose")
+
+    draw_plots()
+
+
+def synthetic_data_run():
+    # Dataset paths.
+    dataset_path = "datasets/random_geometric_dataset.g2o"
+    create_geometric_dataset(translation_variance=0.1,
+                             rotation_variance=0.1,
+                             n_poses=30,
+                             file_name=dataset_path,
+                             box=[0, 10, 0, 10])
+
+    graph = Graph(*parse_g2o(dataset_path))
+    graph_list = form_graph_sequence(graph, 0, step=4, order="distance")
+
+    start_point = 2
+    n_graphs = 3
+
+    solution_history = []
+    changes_history = []
+
+    reference_angle = np.angle(graph_list[start_point].vertices[1].position[0] + 1j * graph_list[start_point].vertices[1].position[1])
+    solved_graphs = []
+
+    # First solve all graphs.
+    for i, g in enumerate(graph_list[start_point:(1 + start_point + n_graphs)]):
+        solution, unused = pgo(g)
+        solved_graphs.append(solution)
+
+    last_graph = solved_graphs[0]
+
+    for i, g in enumerate(graph_list[(1 + start_point):(1 + start_point + n_graphs)]):
+        solution, change = graph_changes(graph_1=last_graph, graph_2=solved_graphs[i + 1],
+                                         reference_angle=reference_angle, focus_poses=list(range(10, 20)))
+        solution_history.append(solution)
+        changes_history.append(change)
+        last_graph = solved_graphs[i]
 
     plt.figure()
-    plt.scatter(average_x_data, average_log_data)
-    plt.title("Average Log-Magnitude of Change vs. Distance")
-    plt.xlabel("Distance from Pose to Added Edge")
-    plt.ylabel("Magnitude of Change in Pose")
-
-    plt.figure()
-    plt.scatter(rotation_x_data, rotation_data)
-    plt.title("Magnitude of Rotation Change vs. Distance")
-    plt.xlabel("Distance from Pose to Added Edge")
-    plt.ylabel("Magnitude of Change in Rotation")
-
-    plt.figure()
-    plt.scatter(average_x_data, average_data)
-    plt.title("Average Magnitude of Change vs. Distance")
-    plt.xlabel("Distance from Pose to Added Edge")
-    plt.ylabel("Magnitude of Change in Pose")
-
-    plt.figure()
-    plt.scatter(average_x_data, average_rotation_data)
-    plt.title("Average Magnitude of Rotation Change vs. Distance")
-    plt.xlabel("Distance from Pose to Added Edge")
-    plt.ylabel("Magnitude of Change in Rotation")
-
-    plt.figure()
-    plot_pose_graph(graph=main_solution)
+    plt.scatter(changes_history)
+    plt.title("Change in Selected Poses vs. Graph Time")
+    plt.xlabel("Time (Number of Pose-Blocks added)")
+    plt.ylabel("Change in Solution of Selected Block Pose")
 
     draw_plots()
 
 
 if __name__ == "__main__":
-    # create_random_dataset(translation_variance=0.2,
-    #                       rotation_variance=0.2,
-    #                       n_poses=100,
-    #                       edge_probability=0.005,
-    #                       file_name="datasets/random_test.g2o")
 
-    # Path for generated file.
-    # FILE_PATH = "datasets/random_test.g2o"
-
-    create_geometric_dataset(translation_variance=0.2,
-                             rotation_variance=0.2,
-                             n_poses=10,
-                             box=(0, 10, 0, 10),
-                             radius=1,
-                             file_name="datasets/random_geometric.g2o")
-
-    # Path for generated file.
-    FILE_PATH = "datasets/random_geometric.g2o"
-
-    # graph_list = form_graph_sequence(Graph(*parse_g2o("datasets/good_geometric_example.g2o")), pose_id=3)
-
-    # for graph in graph_list[2:10]:
-    #     plt.figure()
-    #     plot_pose_graph(graph)
-    #
-    # draw_plots()
-
-    sequential_fixed_pose(FILE_PATH, vertex_id=3, step=1)
+    real_data_run()
+    # synthetic_data_run()

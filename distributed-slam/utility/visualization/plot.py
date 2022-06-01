@@ -104,13 +104,14 @@ def plot_vertices(vertices, xlim=None, ylim=None, new_figure=True, color=None, e
     _set_axes(x, y, xlim, ylim)
 
 
-def plot_pose_graph(graph, colors=None, color=None, offset=0):
+def plot_pose_graph(graph, colors=None, color=None, offset=0, with_labels=True, with_edges=True):
 
     # Collect edges as tuples between vertex ids.
     edges = [(e.out_vertex + offset, e.in_vertex + offset) for e in graph.edges]
 
     # Initialize networkx graph.
     g = nx.DiGraph()
+
     g.add_edges_from(edges)
 
     # Collect positions of vertices.
@@ -127,7 +128,7 @@ def plot_pose_graph(graph, colors=None, color=None, offset=0):
     if colors is not None:
         cmap = plt.get_cmap('plasma')
 
-        nx.draw_networkx(g, cmap=cmap, node_color=color_list, pos=positions, labels=labels, with_labels=True, arrows=True, arrowsize=18, font_size=10)
+        nx.draw_networkx(g, cmap=cmap, node_color=color_list, pos=positions, labels=labels, with_labels=True, arrows=False, arrowsize=18, font_size=10)
 
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=min(color_list), vmax=max(color_list)))
         sm._A = []
@@ -135,9 +136,12 @@ def plot_pose_graph(graph, colors=None, color=None, offset=0):
         cb.ax.set_yticklabels(["{:.3f}".format(i) for i in cb.get_ticks()])
     else:
         if color is None:
-            nx.draw_networkx(g, pos=positions, labels=labels, with_labels=True, arrows=True, arrowsize=18, font_size=10)
+            nx.draw_networkx(g, pos=positions, labels=labels, with_labels=with_labels, arrows=False, arrowsize=18, font_size=10)
         else:
-            nx.draw_networkx(g, pos=positions, node_color=color, labels=labels, with_labels=True, arrows=True, arrowsize=18, font_size=10)
+            if with_edges:
+                nx.draw_networkx(g, pos=positions, node_color=color, labels=labels, with_labels=with_labels, arrows=False, arrowsize=18, font_size=10)
+            else:
+                nx.draw_networkx_nodes(g, pos=positions, node_color=color)
 
 
 def plot_line_graph(graph):

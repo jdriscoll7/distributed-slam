@@ -5,6 +5,70 @@ import matplotlib.animation as animation
 from matplotlib.animation import PillowWriter
 
 
+def difference_graph_with_colors(graph_1, graph_2, colors):
+
+    # Find plotting bounds to nicely fit frames.
+    left = 0
+    right = 0
+    bottom = 0
+    top = 0
+
+    for graph in [graph_1, graph_2]:
+        # Extract maximal coordinates.
+        x_min = np.min(np.real(graph.get_complex_state()))
+        x_max = np.max(np.real(graph.get_complex_state()))
+        y_min = np.min(np.imag(graph.get_complex_state()))
+        y_max = np.max(np.imag(graph.get_complex_state()))
+
+        # Keep track of minimal/maximal coordinates.
+        left = left if left < x_min else x_min
+        right = right if right > x_max else x_max
+        bottom = bottom if bottom < y_min else y_min
+        top = top if top > y_max else y_max
+
+    left = left - 0.1 * np.abs(left) - 1
+    right = right + 0.1 * np.abs(right) + 1
+    top = top + 0.1 * np.abs(top) + 1
+    bottom = bottom - 0.1 * np.abs(bottom) - 1
+
+    # Draw pose graph with heat map.
+    plot_pose_graph(graph=graph_1, colors=colors)
+
+    # Find newly added vertices.
+    small_graph_ids = [v.id for v in graph_1.vertices]
+    new_vertex_ids = [v.id for v in graph_2.vertices if v.id not in small_graph_ids]
+    new_vertex_pos = {v.id: tuple(v.position) for v in graph_2.vertices if v.id not in small_graph_ids}
+
+    # Find edges in larger graph that are not in smaller graph.
+    smaller_graph_edges = [(e.in_vertex, e.out_vertex) for e in graph_1.edges]
+    added_edges = [(e.in_vertex, e.out_vertex) for e in graph_2.edges if
+                   (e.in_vertex, e.out_vertex) not in smaller_graph_edges]
+
+    vertex_neighborhood = [v.id for v in graph_2.subgraph(new_vertex_ids, neighborhood=True).vertices]
+
+    # Initialize networkx graph.
+    g = nx.DiGraph()
+    g.add_edges_from(added_edges)
+    g.add_nodes_from(vertex_neighborhood)
+
+    node_positions = {v.id: tuple(v.position) for v in
+                      graph_2.subgraph(new_vertex_ids, neighborhood=True).vertices}
+
+    nx.draw_networkx_edges(g, pos=node_positions, arrows=True, arrowsize=18)
+    nx.draw_networkx(g.subgraph(new_vertex_ids),
+                     node_color='green',
+                     pos=new_vertex_pos,
+                     labels=dict((v_id, "$" + str(v_id + 1) + "$") for v_id in new_vertex_ids),
+                     with_labels=True,
+                     arrows=True,
+                     arrowsize=18,
+                     font_size=10,
+                     node_size=400)
+
+    plt.gca().set_xlim(left=left, right=right)
+    plt.gca().set_ylim(bottom=bottom, top=top)
+
+
 def create_gif(update, data, data_length, name):
 
     fig, ax = plt.subplots(1, 1)
@@ -130,7 +194,7 @@ def graph_changes(graph_1, graph_2, reference_angle):
     graph_1_edge_tuples = [(e.in_vertex, e.out_vertex) for e in graph_1.edges]
     added_edges = [e for e in graph_2.edges if (e.in_vertex, e.out_vertex) not in graph_1_edge_tuples]
 
-    # Find distance of all poses from the critical edge.
+    # Find distance of all poses from the critical edges.
     distances = graphical_distances(graph=graph_2, edges=added_edges)
 
     # Print costs of each solution.
@@ -150,9 +214,9 @@ def graph_changes(graph_1, graph_2, reference_angle):
     # Find the magnitude of change for each pose in first graph.
     for i, v in enumerate(graph_1.vertices):
 
-        position_change = np.linalg.norm(v.position - graph_2.vertices[i].position)
-        rotation_change = np.mod(np.abs(v.rotation - graph_2.vertices[i].rotation), np.pi)
-        print("Position change for vertex %d: %f ([%f, %f] -> [%f, %f])" % (v.id, position_change, v.position[0], v.position[1], graph_2.vertices[i].position[0], graph_2.vertices[i].position[1]))
+        position_change = np.linalg.norm(v.position - graph_2.get_vertex(v.id).position)
+        rotation_change = np.mod(np.abs(v.rotation - graph_2.get_vertex(v.id).rotation), np.pi)
+        print("Position change for vertex %d (distance %d): %f ([%f, %f] -> [%f, %f])" % (v.id, distances[v.id], position_change, v.position[0], v.position[1], graph_2.vertices[i].position[0], graph_2.vertices[i].position[1]))
 
         position_changes[v.id] = position_change
         rotation_changes[v.id] = rotation_change
@@ -177,11 +241,16 @@ def graph_changes(graph_1, graph_2, reference_angle):
         average_x_data.append(key)
         change_averages.append(np.mean(distance_change_dictionary[key]))
 
+    plt.figure()
+    difference_graph_with_colors(graph_1, graph_2, colors=position_changes)
+
     # plt.figure()
     # plot_pose_graph(graph=graph_1)
+    # plt.title("Graph 1 Solution")
     #
     # plt.figure()
     # plot_pose_graph(graph=graph_2)
+    # plt.title("Graph 2 Solution")
 
     plt.figure()
     plot_pose_graph(graph=graph_1, colors=position_changes)
@@ -197,25 +266,61 @@ def graph_changes(graph_1, graph_2, reference_angle):
     return graph_1, position_changes
 
 
-if __name__ == "__main__":
+def real_data_run():
 
-    # Dataset paths.
-    # dataset_path = "datasets/random_geometric_dataset.g2o"
-    # create_geometric_dataset(translation_variance=0.1,
-    #                          rotation_variance=0.1,
-    #                          n_poses=30,
-    #                          file_name=dataset_path,
-    #                          box=[0, 10, 0, 10])
+    graph = Graph(*parse_g2o("datasets/input_INTEL_g2o.g2o"))
+    # graph = Graph(*parse_g2o("datasets/CSAIL_P.g2o"))
 
-    # graph = Graph(*parse_g2o(dataset_path))
-    # graph = Graph(*parse_g2o("datasets/input_INTEL_g2o.g2o"))
-    graph = Graph(*parse_g2o("datasets/CSAIL_P.g2o"))
+    # graph_list = form_graph_sequence(graph, 0, step=10, order="id")
+    #
+    # start_point = 106
+    # n_graphs = 7
 
     graph_list = form_graph_sequence(graph, 0, step=20, order="id")
 
-    start_point = 40
-    n_graphs = 6
-    last_graph = graph_list[start_point]
+    start_point = 53
+    n_graphs = 3
+
+    solution_history = []
+    changes_history = []
+
+    reference_angle = np.angle(
+        graph_list[start_point].vertices[1].position[0] + 1j * graph_list[start_point].vertices[1].position[1])
+    solved_graphs = []
+
+    # First solve all graphs.
+    for i, g in enumerate(graph_list[start_point:(1 + start_point + n_graphs)]):
+        solution, unused = pgo(g)
+        solved_graphs.append(solution)
+
+    last_graph = solved_graphs[0]
+
+    for i, g in enumerate(graph_list[(1 + start_point):(1 + start_point + n_graphs)]):
+        solution, change = graph_changes(graph_1=last_graph, graph_2=solved_graphs[i + 1],
+                                         reference_angle=reference_angle)
+        solution_history.append(solution)
+        changes_history.append(change)
+        last_graph = solved_graphs[i]
+
+    #create_trajectory_gif(solution_history, changes_history, last_graph)
+
+    draw_plots()
+
+
+def synthetic_data_run():
+    # Dataset paths.
+    dataset_path = "datasets/random_geometric_dataset.g2o"
+    create_geometric_dataset(translation_variance=0.1,
+                             rotation_variance=0.1,
+                             n_poses=30,
+                             file_name=dataset_path,
+                             box=[0, 10, 0, 10])
+
+    graph = Graph(*parse_g2o(dataset_path))
+    graph_list = form_graph_sequence(graph, 0, step=4, order="distance")
+
+    start_point = 2
+    n_graphs = 3
 
     solution_history = []
     changes_history = []
@@ -224,12 +329,14 @@ if __name__ == "__main__":
     solved_graphs = []
 
     # First solve all graphs.
-    for i, g in enumerate(graph_list[(1 + start_point):(1 + start_point + n_graphs)]):
+    for i, g in enumerate(graph_list[start_point:(1 + start_point + n_graphs)]):
         solution, unused = pgo(g)
         solved_graphs.append(solution)
 
+    last_graph = solved_graphs[0]
+
     for i, g in enumerate(graph_list[(1 + start_point):(1 + start_point + n_graphs)]):
-        solution, change = graph_changes(graph_1=last_graph, graph_2=solved_graphs[i],
+        solution, change = graph_changes(graph_1=last_graph, graph_2=solved_graphs[i + 1],
                                          reference_angle=reference_angle)
         solution_history.append(solution)
         changes_history.append(change)
@@ -238,3 +345,9 @@ if __name__ == "__main__":
     create_trajectory_gif(solution_history, changes_history, last_graph)
 
     draw_plots()
+
+
+if __name__ == "__main__":
+
+    real_data_run()
+    # synthetic_data_run()
