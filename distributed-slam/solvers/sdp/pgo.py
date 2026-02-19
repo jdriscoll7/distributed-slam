@@ -4,6 +4,7 @@ import numpy as np
 from scipy.linalg import null_space
 
 from solvers.sdp import w_from_vertices_and_edges, w_to_sedumi
+from utility.common import rank_one_approximation
 from utility.graph import Graph
 from utility.parsing import parse_g2o
 from utility.visualization import plot_complex_list, plot_vertices, draw_plots
@@ -63,7 +64,7 @@ def solve_primal_program(w):
 
     print(problem.value)
 
-    return X.value
+    return rank_one_approximation(X.value)
 
 
 def solve_dual_program(w):

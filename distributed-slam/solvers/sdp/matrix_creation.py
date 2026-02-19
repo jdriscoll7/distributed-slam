@@ -69,7 +69,7 @@ def create_u_matrix(edges, n_vertices):
     return u
 
 
-def edges_to_incidence(edges, n_vertices, anchored=True):
+def edges_to_incidence(edges, n_vertices, anchored=True, complex=True):
     """
     Converts a list of edges into the anchored incidence matrix used in Carlone W matrix.
 
@@ -80,7 +80,7 @@ def edges_to_incidence(edges, n_vertices, anchored=True):
     """
 
     # Pre-allocate incidence matrix with all zeros.
-    a = np.array(np.zeros((len(edges), n_vertices)))
+    a = np.array(np.zeros((len(edges), n_vertices))) if complex else np.array(np.zeros((2*len(edges), 2*n_vertices)))
 
     # Set entries of incidence matrix.
     for i in range(len(edges)):
@@ -89,8 +89,14 @@ def edges_to_incidence(edges, n_vertices, anchored=True):
         edge = edges[i]
 
         # Column pertaining to in-vertex set to +1, out-vertex set to -1.
-        a[i, edge.in_vertex] = 1
-        a[i, edge.out_vertex] = -1
+        if complex:
+            a[i, edge.in_vertex] = 1
+            a[i, edge.out_vertex] = -1
+        else:
+            a[2*i, 2*edge.in_vertex] = 1
+            a[2 * i + 1, 2*edge.in_vertex + 1] = 1
+            a[2*i, 2*edge.out_vertex] = -1
+            a[2 * i + 1, 2*edge.out_vertex + 1] = -1
 
     # Anchor the matrix (i.e. remove first column).
     if anchored:
@@ -134,7 +140,7 @@ def complex_reduce_matrix(a):
     m, n = np.shape(a)
 
     # Initialize output matrix with zeros.
-    output = np.zeros((m // 2, n // 2), dtype=np.complex)
+    output = np.zeros((m // 2, n // 2), dtype=complex)
 
     # Iterate through all 2x2 block matrices (need to step twice in each index).
     for i in range(0, m - 1, 2):
@@ -144,7 +150,7 @@ def complex_reduce_matrix(a):
     return np.array(output)
 
 
-def create_w_matrix(a, d, u, factored=False):
+def create_w_matrix(a, d, u, factored=False, complex=True):
     """
     Creates the large W matrix used in the main algorithm in Carlone PGO paper (in eq (26)).
 
@@ -162,8 +168,8 @@ def create_w_matrix(a, d, u, factored=False):
     """
 
     # Pre-compute reduced d and u matrices.
-    reduced_u = complex_reduce_matrix(u)
-    reduced_d = complex_reduce_matrix(d)
+    reduced_u = complex_reduce_matrix(u) if complex else u
+    reduced_d = complex_reduce_matrix(d) if complex else d
 
     X = np.block([[a, reduced_d],
                   [np.zeros((reduced_u.shape[0], a.shape[1])), reduced_u]])
@@ -194,7 +200,7 @@ def w_from_graph(graph, factored=False, anchored=True):
     return w_from_vertices_and_edges(graph.vertices, graph.edges, factored, anchored)
 
 
-def w_from_vertices_and_edges(vertices, edges, factored=False, anchored=True):
+def w_from_vertices_and_edges(vertices, edges, factored=False, anchored=True, complex=True):
     """
     Creates the W matrix fromused in Carlone paper from list of vertices and edges.
 
@@ -204,12 +210,12 @@ def w_from_vertices_and_edges(vertices, edges, factored=False, anchored=True):
     """
 
     # Create the three inputs needed to create W matrix.
-    a = edges_to_incidence(edges, len(vertices), anchored)
+    a = edges_to_incidence(edges, len(vertices), anchored, complex)
     d = create_d_matrix(edges, len(vertices))
     u = create_u_matrix(edges, len(vertices))
 
     # Create and return w matrix.
-    return create_w_matrix(a, d, u, factored)
+    return create_w_matrix(a, d, u, factored, complex)
 
 
 if __name__ == "__main__":

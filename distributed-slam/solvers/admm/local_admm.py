@@ -31,7 +31,7 @@ class LocalADMM:
             self.graph = self.sdp_solution
 
         # Make variables (slack, local, dual) initialized to original graph.
-        self.slack = np.zeros(shape=(len(2*self.graph.vertices), 2*len(self.graph.vertices)), dtype=np.complex)
+        self.slack = np.zeros(shape=(len(2*self.graph.vertices), 2*len(self.graph.vertices)), dtype=complex)
         self.local_graphs = self.graph.partition(partition)
         self.local_variables = [g[0].get_complex_state() @ np.conj(g[0].get_complex_state().T)
                                 for g in self.local_graphs]
@@ -91,7 +91,7 @@ class LocalADMM:
         w = self.w[i]
 
         # Matrix optimization variable.
-        X = np.zeros(dtype=np.complex, shape=w.shape)
+        X = np.zeros(dtype=complex, shape=w.shape)
 
         # Convert global and dual states into rank one matrices.
         U = self.dual[i]
@@ -115,7 +115,7 @@ class LocalADMM:
         # Add anchored pose if anchor vertex contained in neighborhood.
         if 0 in self.local_graphs[i][1]:
 
-            padded_X = np.zeros(shape=(X.shape[0] + 1, X.shape[1] + 1), dtype=np.complex)
+            padded_X = np.zeros(shape=(X.shape[0] + 1, X.shape[1] + 1), dtype=complex)
             padded_X[1:, 1:] = X
             X = padded_X
 
@@ -127,8 +127,8 @@ class LocalADMM:
         n = len(self.graph.vertices)
 
         # Keep running sum and counts for each global index.
-        sum_table = np.zeros((2*n, 2*n), dtype=np.complex)
-        count_table = np.zeros((2*n, 2*n), dtype=np.complex)
+        sum_table = np.zeros((2*n, 2*n), dtype=complex)
+        count_table = np.zeros((2*n, 2*n), dtype=complex)
 
         # Global estimate is just an average at each component covered by local estimates.
         for i, estimate in enumerate(self.local_graphs):
@@ -264,14 +264,14 @@ class LocalADMM:
 
         # Append new dual variable - need to add row and column of zeros on edges.
         dual_size = 2 * len(neighborhood.vertices) - (1 if anchored else 0)
-        self.dual.append(np.zeros(shape=(dual_size, dual_size), dtype=np.complex))
+        self.dual.append(np.zeros(shape=(dual_size, dual_size), dtype=complex))
 
         # Reset value of other duals back to zero matrices.
         for i, dual in enumerate(self.dual):
-            self.dual[i] = np.zeros(shape=dual.shape, dtype=np.complex)
+            self.dual[i] = np.zeros(shape=dual.shape, dtype=complex)
 
         # Reset "global" slack variable to zero matrix with one additional column and row than before.
-        self.slack = np.zeros(shape=(self.slack.shape[0] + 1, self.slack.shape[1] + 1), dtype=np.complex)
+        self.slack = np.zeros(shape=(self.slack.shape[0] + 1, self.slack.shape[1] + 1), dtype=complex)
 
     def fix_local_problem(self, i):
 
@@ -315,7 +315,7 @@ def evaluate_local_solutions(admm_optimizer):
 
     n = len(admm_optimizer.graph.vertices)
 
-    solution = np.zeros(shape=(2 * n, 2 * n), dtype=np.complex)
+    solution = np.zeros(shape=(2 * n, 2 * n), dtype=complex)
 
     for i, x in enumerate(admm_optimizer.local_variables):
         indices = admm_optimizer.local_graphs[i][1] + [x + n for x in admm_optimizer.local_graphs[i][1]]
@@ -324,7 +324,7 @@ def evaluate_local_solutions(admm_optimizer):
     opinion_list = [[] for _ in range(len(admm_optimizer.graph.vertices))]
 
     # Composed of entries from smaller, rank-one matrices.
-    composite_solution = np.zeros(shape=(2 * n, 1), dtype=np.complex)
+    composite_solution = np.zeros(shape=(2 * n, 1), dtype=complex)
 
     rank_one_approximations = []
     for i, x in enumerate(admm_optimizer.local_variables):

@@ -1,8 +1,6 @@
 import networkx as nx
 
-from helper_functions import *
-import matplotlib.animation as animation
-from matplotlib.animation import PillowWriter
+from examples.paper_experiments.phase_sync.helper_functions import *
 
 
 def difference_graph_with_colors(graph_1, graph_2, colors):

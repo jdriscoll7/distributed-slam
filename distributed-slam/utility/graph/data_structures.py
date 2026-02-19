@@ -130,7 +130,7 @@ class Graph:
 
     def get_complex_state(self, centered=False):
 
-        x = np.zeros((2*len(self.vertices), 1), dtype=np.complex)
+        x = np.zeros((2*len(self.vertices), 1), dtype=complex)
 
         for i, v in enumerate(self.vertices):
             x[i] = v.position[0] + 1j*v.position[1]
@@ -230,6 +230,10 @@ class Graph:
             elif e.out_vertex in i and e.in_vertex not in i:
                 vertex_list.append(self.get_vertex(e.in_vertex))
 
+        # Remove duplicate vertices in list.
+        g = vertex_list[:]
+        vertex_list = list(filter(lambda x: g.remove(x) is None and g.count(x) == 0, vertex_list))
+
         return vertex_list
 
     def copy(self):
@@ -245,7 +249,7 @@ class Graph:
 
             # Compute new rotation and position.
             new_position = (_rotation_matrix(angle) @ position).reshape((2, ))
-            new_rotation = rotation - angle
+            new_rotation = rotation + angle
 
             # Set values.
             self.vertices[i].position = new_position

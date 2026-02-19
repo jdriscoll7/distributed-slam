@@ -1,4 +1,7 @@
+import networkx
 import numpy as np
+from networkx import Graph
+
 from utility.parsing import Vertex, Edge, write_g2o
 from .grouped_data import group_datasets
 
@@ -27,38 +30,27 @@ def _create_vertex_list(truth_states):
     return [Vertex(i, position=truth_states[i][0:2], rotation=truth_states[i][2]) for i in range(len(truth_states))]
 
 
-def geometric_graph_edges(vertex_coordinates, radius):
+def geometric_graph_edges(vertex_coordinates, radius=0.1):
 
-    # Keep list of edges included in geometric graph.
-    edge_set = []
+    graph = Graph()
+    graph.add_nodes_from([i for i in range(len(vertex_coordinates))])
 
-    # Find largest distance between any two nodes.
-    closest_vertex_distance = [[np.inf, np.inf] for _ in range(len(vertex_coordinates))]
-    for i, vertex_1 in enumerate(vertex_coordinates):
-        for j, vertex_2 in enumerate(vertex_coordinates):
-            if i != j:
-                distance = np.linalg.norm(vertex_1 - vertex_2)
-
-                if distance < closest_vertex_distance[i][0]:
-                    closest_vertex_distance[i][1] = closest_vertex_distance[i][0]
-                    closest_vertex_distance[i][0] = distance
-                elif distance < closest_vertex_distance[i][1]:
-                    closest_vertex_distance[i][1] = distance
-
-    if max([max(x) for x in closest_vertex_distance]) > radius:
-        radius = max([max(x) for x in closest_vertex_distance]) + 0.1
+    while not networkx.is_connected(graph):
+        edge_set = []
+        graph.clear_edges()
         print("Given radius too small. Radius expanded to %f" % (radius))
-
-    for i, vertex_1 in enumerate(vertex_coordinates):
-        for j, vertex_2 in enumerate(vertex_coordinates):
-            # Keep counter to alternate ingoing/outgoing edges.
-            edge_counter = 0
-            if i < j and np.linalg.norm(vertex_1 - vertex_2) <= radius:
-                if edge_counter % 2 == 0:
-                    edge_set.append((i, j))
-                else:
-                    edge_set.append((j, i))
-                edge_counter += 1
+        for i, vertex_1 in enumerate(vertex_coordinates):
+            for j, vertex_2 in enumerate(vertex_coordinates):
+                # Keep counter to alternate ingoing/outgoing edges.
+                edge_counter = 0
+                if i < j and np.linalg.norm(vertex_1 - vertex_2) <= radius:
+                    if edge_counter % 2 == 0:
+                        edge_set.append((i, j))
+                    else:
+                        edge_set.append((j, i))
+                    edge_counter += 1
+        graph.add_edges_from(edge_set)
+        radius *= 1.5
 
     return edge_set
 

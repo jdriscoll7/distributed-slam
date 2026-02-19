@@ -8,7 +8,7 @@ from multiprocessing import Pool
 
 from solvers.sdp import w_from_vertices_and_edges, pgo
 from solvers.sdp.matrix_creation import w_from_graph
-from utility.common import cost_function
+from utility.common import cost_function, rank_one_approximation, vector_to_complex
 from utility.graph import Graph
 from utility.parsing import parse_g2o
 from utility.visualization import plot_complex_list, plot_vertices, draw_plots
@@ -77,7 +77,7 @@ class LocalOptimizer:
         neighborhood, vertex_ids = self.graph.neighborhood(vertex_id, reduce=True)
 
         # Solve SDP for tree, then find rank-one approximation to that solution.
-        X = rank_one_approximation(solve_primal_program(w_from_graph(neighborhood)))
+        X = solve_primal_program(w_from_graph(neighborhood))
 
         # Translate graph appropriately (since lowest-id vertex is fixed to origin).
         offset = vector_to_complex(self.graph.get_vertex(vertex_ids[0]).position)

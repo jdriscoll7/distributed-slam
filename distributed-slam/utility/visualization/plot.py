@@ -104,7 +104,7 @@ def plot_vertices(vertices, xlim=None, ylim=None, new_figure=True, color=None, e
     _set_axes(x, y, xlim, ylim)
 
 
-def plot_pose_graph(graph, colors=None, color=None, offset=0, with_labels=True, with_edges=True):
+def plot_pose_graph(graph, colors=None, color=None, offset=0, with_labels=False, with_edges=True):
 
     # Collect edges as tuples between vertex ids.
     edges = [(e.out_vertex + offset, e.in_vertex + offset) for e in graph.edges]
@@ -128,7 +128,7 @@ def plot_pose_graph(graph, colors=None, color=None, offset=0, with_labels=True, 
     if colors is not None:
         cmap = plt.get_cmap('plasma')
 
-        nx.draw_networkx(g, cmap=cmap, node_color=color_list, pos=positions, labels=labels, with_labels=True, arrows=False, arrowsize=18, font_size=10)
+        nx.draw_networkx(g, cmap=cmap, node_color=color_list, pos=positions, labels=labels, with_labels=with_labels, arrows=False, arrowsize=18, font_size=10)
 
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=min(color_list), vmax=max(color_list)))
         sm._A = []

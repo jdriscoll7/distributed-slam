@@ -1,11 +1,10 @@
 import networkx as nx
 
-from helper_functions import *
+from examples.paper_experiments.phase_sync.helper_functions import *
 import matplotlib.animation as animation
-from matplotlib.animation import PillowWriter
 
 
-def difference_graph_with_colors(graph_1, graph_2, colors):
+def difference_graph_with_colors(graph_1, graph_2, colors, with_labels=False):
 
     # Find plotting bounds to nicely fit frames.
     left = 0
@@ -59,7 +58,7 @@ def difference_graph_with_colors(graph_1, graph_2, colors):
                      node_color='green',
                      pos=new_vertex_pos,
                      labels=dict((v_id, "$" + str(v_id + 1) + "$") for v_id in new_vertex_ids),
-                     with_labels=True,
+                     with_labels=with_labels,
                      arrows=True,
                      arrowsize=18,
                      font_size=10,
@@ -235,11 +234,11 @@ def graph_changes(graph_1, graph_2, reference_angle):
         distance_change_dictionary.setdefault(distances[key], []).append(position_changes[key])
 
     # Data averages.
-    change_averages = []
-    average_x_data = []
+    change_maxes = []
+    max_x_data = []
     for key in distance_change_dictionary:
-        average_x_data.append(key)
-        change_averages.append(np.mean(distance_change_dictionary[key]))
+        max_x_data.append(key)
+        change_maxes.append(np.max(distance_change_dictionary[key]))
 
     plt.figure()
     difference_graph_with_colors(graph_1, graph_2, colors=position_changes)
@@ -258,10 +257,14 @@ def graph_changes(graph_1, graph_2, reference_angle):
     plt.figure()
     plt.scatter(x_data, position_data)
     plt.title("Position Change in Graph vs. Distance")
+    plt.xlabel("Solution Distance in Graph")
+    plt.ylabel("Magnitude of Solution Change")
 
     plt.figure()
-    plt.scatter(average_x_data, change_averages)
-    plt.title("Average Position Change in Graph vs. Distance")
+    plt.scatter(max_x_data, change_maxes)
+    plt.title("Largest Position Change in Graph vs. Distance")
+    plt.xlabel("Solution Distance in Graph")
+    plt.ylabel("Magnitude of Solution Change")
 
     return graph_1, position_changes
 
@@ -271,15 +274,15 @@ def real_data_run():
     graph = Graph(*parse_g2o("datasets/input_INTEL_g2o.g2o"))
     # graph = Graph(*parse_g2o("datasets/CSAIL_P.g2o"))
 
-    # graph_list = form_graph_sequence(graph, 0, step=10, order="id")
+    # graph_list = form_graph_sequence(graph, pose_id=0, step=10, order="id")
     #
     # start_point = 106
     # n_graphs = 7
 
-    graph_list = form_graph_sequence(graph, 0, step=20, order="id")
+    graph_list = form_graph_sequence(graph, pose_id=0, step=20, order="id")
 
-    start_point = 53
-    n_graphs = 3
+    start_point = 54
+    n_graphs = 1
 
     solution_history = []
     changes_history = []
@@ -307,20 +310,25 @@ def real_data_run():
     draw_plots()
 
 
-def synthetic_data_run():
+def synthetic_data_run(n_poses=100):
     # Dataset paths.
     dataset_path = "datasets/random_geometric_dataset.g2o"
     create_geometric_dataset(translation_variance=0.1,
                              rotation_variance=0.1,
-                             n_poses=30,
+                             n_poses=n_poses,
                              file_name=dataset_path,
-                             box=[0, 10, 0, 10])
+                             box=[0, 20, 0, 20])
 
     graph = Graph(*parse_g2o(dataset_path))
-    graph_list = form_graph_sequence(graph, 0, step=4, order="distance")
+    graph_mod = Graph(*parse_g2o(dataset_path)).subgraph(i=[k for k in range(n_poses) if k != n_poses-1])
 
-    start_point = 2
-    n_graphs = 3
+    # graph_list = form_graph_sequence(graph, 0, step=1, order="distance")
+    graph_list = [graph_mod, graph]
+
+    # start_point = 46
+    # n_graphs = 2
+    start_point = 0
+    n_graphs = 1
 
     solution_history = []
     changes_history = []
@@ -335,19 +343,19 @@ def synthetic_data_run():
 
     last_graph = solved_graphs[0]
 
-    for i, g in enumerate(graph_list[(1 + start_point):(1 + start_point + n_graphs)]):
+    for i, g in enumerate(graph_list[(start_point + 1):(1 + start_point + n_graphs)]):
         solution, change = graph_changes(graph_1=last_graph, graph_2=solved_graphs[i + 1],
                                          reference_angle=reference_angle)
         solution_history.append(solution)
         changes_history.append(change)
         last_graph = solved_graphs[i]
 
-    create_trajectory_gif(solution_history, changes_history, last_graph)
+    # create_trajectory_gif(solution_history, changes_history, last_graph)
 
     draw_plots()
 
 
 if __name__ == "__main__":
 
-    real_data_run()
-    # synthetic_data_run()
+    # real_data_run()
+    synthetic_data_run()

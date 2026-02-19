@@ -22,7 +22,7 @@ def neos_sdpt3_solve(input_file, output_file, local=True):
     """
 
     if local:
-        command_string = ("matlab -nojvm -nodesktop -nosplash -wait -r \"install_sdpt3;" 
+        command_string = ("matlab -nojvm -nodesktop -nosplash -wait -batch \"install_sdpt3;" 
                           "[blk,At,C,b] = read_sedumi(\'sedumi_problem.mat\');"
                           "[obj,X,optimizer,Z] = sqlp(blk,At,C,b);"
                           "save(\'" + output_file +
